@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Jua", "Gowun Dodum", sans-serif;
-  --font-body: "Gowun Dodum", "Jua", sans-serif;
+  --font-display: "Jua", "Gowun Dodum", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --font-body: "Gowun Dodum", "Jua", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --color-app-bg: #fef6e4;
 }
 
 html,
@@ -13,6 +14,7 @@ body,
 
 body {
   font-family: var(--font-body);
+  background: var(--color-app-bg);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }
