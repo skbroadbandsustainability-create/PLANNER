@@ -8,11 +8,13 @@ type Action =
   | { type: 'UPDATE_TASK'; task: Task }
   | { type: 'DELETE_TASK'; id: string }
   | { type: 'TOGGLE_TASK'; id: string }
-  | { type: 'STAMP_DAY'; date: string; stars: number }
   | { type: 'SET_GOAL'; goal: RewardGoal }
   | { type: 'REDEEM_GOAL' }
   | { type: 'SET_KID_NAME'; name: string }
+  | { type: 'SET_STARS'; stars: number }
   | { type: 'IMPORT_STATE'; state: AppState }
+
+export const STARS_PER_DAY = 2
 
 function loadInitialState(): AppState {
   try {
@@ -33,22 +35,39 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, tasks: state.tasks.map((t) => (t.id === action.task.id ? action.task : t)) }
     case 'DELETE_TASK':
       return { ...state, tasks: state.tasks.filter((t) => t.id !== action.id) }
-    case 'TOGGLE_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.map((t) =>
-          t.id === action.id
-            ? { ...t, done: !t.done, doneAt: !t.done ? new Date().toISOString() : undefined }
-            : t,
-        ),
+    case 'TOGGLE_TASK': {
+      const target = state.tasks.find((t) => t.id === action.id)
+      if (!target) return state
+      const tasks = state.tasks.map((t) =>
+        t.id === action.id
+          ? { ...t, done: !t.done, doneAt: !t.done ? new Date().toISOString() : undefined }
+          : t,
+      )
+
+      // 이 날짜의 과제가 전부 끝났는지 다시 계산해서, 도장/별을 자동으로 주거나 취소한다.
+      // (실수로 체크했다가 취소하면 도장과 별도 함께 취소돼야 하므로)
+      const tasksForDate = tasks.filter((t) => t.date === target.date)
+      const allDoneNow = tasksForDate.length > 0 && tasksForDate.every((t) => t.done)
+      const wasStamped = state.stampedDates.includes(target.date)
+
+      if (allDoneNow && !wasStamped) {
+        return {
+          ...state,
+          tasks,
+          stampedDates: [...state.stampedDates, target.date],
+          stars: state.stars + STARS_PER_DAY,
+        }
       }
-    case 'STAMP_DAY':
-      if (state.stampedDates.includes(action.date)) return state
-      return {
-        ...state,
-        stampedDates: [...state.stampedDates, action.date],
-        stars: state.stars + action.stars,
+      if (!allDoneNow && wasStamped) {
+        return {
+          ...state,
+          tasks,
+          stampedDates: state.stampedDates.filter((d) => d !== target.date),
+          stars: Math.max(0, state.stars - STARS_PER_DAY),
+        }
       }
+      return { ...state, tasks }
+    }
     case 'SET_GOAL':
       return { ...state, goal: action.goal }
     case 'REDEEM_GOAL':
@@ -63,6 +82,8 @@ function reducer(state: AppState, action: Action): AppState {
       }
     case 'SET_KID_NAME':
       return { ...state, kidName: action.name }
+    case 'SET_STARS':
+      return { ...state, stars: Math.max(0, Math.round(action.stars)) }
     case 'IMPORT_STATE':
       return action.state
     default:
@@ -95,30 +116,26 @@ export function usePlanner() {
   return ctx
 }
 
-export const STARS_PER_DAY = 2
-
 /**
- * 특정 날짜의 과제가 전부 완료되면 자동으로 도장 + 별을 지급하고,
- * 방금 완료했다는 신호(justCompleted)를 잠깐 켜준다.
+ * 특정 날짜의 완료 상태를 계산하고, 방금 그 날의 과제를 모두 끝낸 순간(justCompleted)을 알려준다.
+ * 도장/별 지급·취소는 reducer(TOGGLE_TASK)가 처리하므로, 여기서는 축하 모달을 띄울 타이밍만 감지한다.
  */
 export function useDayCompletion(date: string) {
-  const { state, dispatch } = usePlanner()
+  const { state } = usePlanner()
   const tasksForDate = useMemo(() => state.tasks.filter((t) => t.date === date), [state.tasks, date])
   const total = tasksForDate.length
   const doneCount = tasksForDate.filter((t) => t.done).length
   const allDone = total > 0 && doneCount === total
-  const alreadyStamped = state.stampedDates.includes(date)
 
   const [justCompleted, setJustCompleted] = useState(false)
   const prevAllDone = useRef(allDone)
 
   useEffect(() => {
-    if (allDone && !alreadyStamped) {
-      dispatch({ type: 'STAMP_DAY', date, stars: STARS_PER_DAY })
+    if (allDone && !prevAllDone.current) {
       setJustCompleted(true)
     }
     prevAllDone.current = allDone
-  }, [allDone, alreadyStamped, date, dispatch])
+  }, [allDone])
 
   return {
     tasksForDate,

@@ -119,6 +119,38 @@ export default function ManageView() {
         <p className="mt-2 text-sm text-slate-400">매일 계획을 모두 끝내면 별 2개를 받아요.</p>
       </section>
 
+      <section className="mt-5 rounded-3xl border-2 border-slate-100 bg-white p-5">
+        <h3 className="font-display text-xl text-slate-700">⭐ 별 개수 수정</h3>
+        <p className="mt-1 text-sm text-slate-400">실수로 체크해서 별이 잘못 쌓였을 때 여기서 바로 고칠 수 있어요.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {[-5, -1].map((delta) => (
+            <button
+              key={delta}
+              onClick={() => dispatch({ type: 'SET_STARS', stars: state.stars + delta })}
+              className="rounded-full border-2 border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 active:scale-95"
+            >
+              {delta}
+            </button>
+          ))}
+          <input
+            type="number"
+            min={0}
+            value={state.stars}
+            onChange={(e) => dispatch({ type: 'SET_STARS', stars: Number(e.target.value) || 0 })}
+            className="w-24 rounded-2xl border-2 border-amber-200 bg-amber-50 px-3 py-2 text-center text-xl font-bold text-amber-700 focus:border-amber-400 focus:outline-none"
+          />
+          {[1, 5].map((delta) => (
+            <button
+              key={delta}
+              onClick={() => dispatch({ type: 'SET_STARS', stars: state.stars + delta })}
+              className="rounded-full border-2 border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 active:scale-95"
+            >
+              +{delta}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="mt-5 rounded-3xl border-2 border-amber-100 bg-amber-50/40 p-5">
         <h3 className="font-display text-xl text-slate-700">{editingId ? '✏️ 계획 수정' : '➕ 새 계획 추가'}</h3>
         <form onSubmit={submit} className="mt-3 flex flex-col gap-3">
