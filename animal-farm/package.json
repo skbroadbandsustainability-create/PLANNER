@@ -1,0 +1,22 @@
+{
+  "name": "animal-farm-3d",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "동물농장 3D 웹 게임 - 자연에서 동물을 찾아 밧줄로 데려와 울타리에서 기르는 게임",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint src",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.0",
+    "oxlint": "^1.75.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.2.2"
+  }
+}

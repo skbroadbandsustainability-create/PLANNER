@@ -23,3 +23,9 @@ npm run lint     # 린트 검사
 ```
 
 React + TypeScript + Vite + Tailwind CSS로 만들었고, 태블릿 화면에 맞춰 반응형으로 디자인했어요.
+
+## 다른 프로젝트: 동물농장 게임
+
+이 저장소 안에는 `animal-farm/` 폴더에 별도의 3D 웹 게임(민주호의 동물농장)도 들어있어요.
+자연을 탐험하며 동물을 찾아 밧줄로 데려오고 농장에서 기르는 게임으로, 공부 계획표 앱과는
+완전히 독립된 프로젝트예요. 자세한 내용은 [`animal-farm/README.md`](./animal-farm/README.md)를 참고하세요.

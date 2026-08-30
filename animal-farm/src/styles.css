@@ -1,0 +1,516 @@
+@font-face {
+  font-family: system-ui-fallback;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #bfe6f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  color: #2f3a2a;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+canvas.game-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  outline: none;
+  cursor: crosshair;
+  z-index: 0;
+}
+
+.hud-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 14px;
+  z-index: 1;
+}
+
+.hud-layer * {
+  pointer-events: auto;
+}
+
+/* ---------- 상단 좌측: 플레이어 정보 ---------- */
+.hud-player {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  min-width: 210px;
+  pointer-events: none;
+}
+
+.hud-player .name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.hud-player .level-badge {
+  background: #e0523a;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.xp-bar-track {
+  margin-top: 6px;
+  width: 100%;
+  height: 8px;
+  background: #e8e4d5;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7bc95a, #4f9a4a);
+  transition: width 0.25s ease;
+}
+
+.hud-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #5a6650;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---------- 상단 우측: 밧줄 상태 ---------- */
+.hud-rope {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  text-align: right;
+  font-size: 12px;
+  color: #5a6650;
+  pointer-events: none;
+}
+
+.hud-rope .rope-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #2f3a2a;
+}
+
+/* ---------- 중앙 조준점 ---------- */
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1.5px solid rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* ---------- 하단 중앙: 상호작용 프롬프트 ---------- */
+.prompt-banner {
+  position: absolute;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 20, 0.78);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.prompt-banner.visible {
+  opacity: 1;
+}
+
+/* ---------- 하단 바: 버튼들 ---------- */
+.bottom-bar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+
+.hud-btn {
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2f3a2a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  transition: transform 0.1s ease;
+}
+
+.hud-btn:hover {
+  transform: translateY(-2px);
+}
+
+.hud-btn .icon {
+  font-size: 20px;
+}
+
+.hud-btn .badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #e0523a;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.hud-btn-wrap {
+  position: relative;
+}
+
+/* ---------- 토스트 ---------- */
+.toast-stack {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  animation: toast-in 0.2s ease, toast-out 0.4s ease 2.4s forwards;
+}
+
+.toast.success {
+  color: #2f7a3a;
+}
+.toast.warning {
+  color: #a34a1c;
+}
+.toast.levelup {
+  color: #b8860b;
+  font-size: 15px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* ---------- 패널 공통 ---------- */
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 25, 15, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-backdrop[hidden] {
+  display: none;
+}
+
+.panel-card {
+  background: #fbf8ef;
+  border-radius: 18px;
+  width: min(560px, 92vw);
+  max-height: 82vh;
+  overflow-y: auto;
+  padding: 18px 20px 22px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.panel-close {
+  background: #efe9d6;
+  border: none;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.panel-tab {
+  border: none;
+  background: #efe9d6;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #5a6650;
+}
+
+.panel-tab.active {
+  background: #7bc95a;
+  color: #fff;
+}
+
+/* 인벤토리 그리드 */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 10px;
+}
+
+.item-cell {
+  background: #efe9d6;
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.item-cell .emoji {
+  font-size: 26px;
+}
+
+.item-cell .name {
+  font-size: 11px;
+  margin-top: 2px;
+  color: #5a6650;
+}
+
+.item-cell .count {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* 레시피/제작 목록 */
+.recipe-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #efe9d6;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.recipe-row .info {
+  font-size: 13px;
+}
+
+.recipe-row .cost {
+  font-size: 11px;
+  color: #5a6650;
+  margin-top: 2px;
+}
+
+.action-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #7bc95a;
+  color: #fff;
+}
+
+.action-btn:disabled {
+  background: #cfc9b6;
+  cursor: not-allowed;
+}
+
+.action-btn.equipped {
+  background: #4f9a4a;
+}
+
+/* 스킬 트리 */
+.skill-row {
+  background: #efe9d6;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.skill-row .info .title {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.skill-row .info .desc {
+  font-size: 12px;
+  color: #5a6650;
+  margin-top: 2px;
+}
+
+.skill-row.locked {
+  opacity: 0.55;
+}
+
+.skill-row.unlocked {
+  border: 2px solid #7bc95a;
+}
+
+/* 퀘스트 로그 */
+.quest-group {
+  margin-bottom: 10px;
+}
+
+.quest-group .species-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.quest-item {
+  display: flex;
+  justify-content: space-between;
+  background: #efe9d6;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.quest-item.done {
+  background: #d9f0cf;
+  color: #2f7a3a;
+  font-weight: 700;
+}
+
+/* 시작 화면 */
+.start-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: radial-gradient(circle at 50% 30%, #cdeccb, #8fce7a 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  padding: 20px;
+}
+
+.start-screen h1 {
+  font-size: 32px;
+  margin: 0;
+  color: #2f3a2a;
+}
+
+.start-screen p {
+  max-width: 480px;
+  line-height: 1.6;
+  color: #37452f;
+  font-size: 14px;
+}
+
+.start-screen .controls-box {
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 13px;
+  line-height: 1.9;
+  text-align: left;
+}
+
+.start-btn {
+  margin-top: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 34px;
+  font-size: 16px;
+  font-weight: 700;
+  background: #e0523a;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 640px) {
+  .hud-player {
+    min-width: 160px;
+    font-size: 12px;
+  }
+  .bottom-bar {
+    gap: 6px;
+  }
+  .hud-btn {
+    padding: 8px 10px;
+  }
+}
