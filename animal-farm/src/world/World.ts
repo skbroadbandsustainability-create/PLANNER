@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { BIOMES, SPECIES } from '../core/data.ts'
 import type { BiomeDef, SpeciesDef } from '../core/types.ts'
 import { Animal, type Bounds } from './Animal.ts'
+import { tiledBlockTexture } from './blockTexture.ts'
 import { NPC } from './NPC.ts'
 
 const WORLD_HALF_EXTENT = 95
@@ -64,9 +65,14 @@ export class World {
   }
 
   private buildGround(): void {
+    const baseSize = WORLD_HALF_EXTENT * 2.4
     const base = new THREE.Mesh(
-      new THREE.PlaneGeometry(WORLD_HALF_EXTENT * 2.4, WORLD_HALF_EXTENT * 2.4),
-      new THREE.MeshStandardMaterial({ color: 0x8fce7a, flatShading: true }),
+      new THREE.PlaneGeometry(baseSize, baseSize),
+      new THREE.MeshStandardMaterial({
+        map: tiledBlockTexture(0x8fce7a, baseSize, baseSize),
+        flatShading: true,
+        roughness: 1,
+      }),
     )
     base.rotation.x = -Math.PI / 2
     base.receiveShadow = true
@@ -74,9 +80,14 @@ export class World {
 
     for (const biome of Object.values(BIOMES)) {
       if (biome.id === 'farm') continue
+      const diameter = biome.halfSize * 2
       const patch = new THREE.Mesh(
         new THREE.CircleGeometry(biome.halfSize, 24),
-        new THREE.MeshStandardMaterial({ color: biome.groundColor, flatShading: true }),
+        new THREE.MeshStandardMaterial({
+          map: tiledBlockTexture(biome.groundColor, diameter, diameter),
+          flatShading: true,
+          roughness: 1,
+        }),
       )
       patch.rotation.x = -Math.PI / 2
       patch.position.set(biome.center.x, 0.01, biome.center.z)
@@ -88,7 +99,13 @@ export class World {
     const coast = BIOMES.coast!
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 90),
-      new THREE.MeshStandardMaterial({ color: 0x3f8fd1, flatShading: true, transparent: true, opacity: 0.92 }),
+      new THREE.MeshStandardMaterial({
+        map: tiledBlockTexture(0x3f8fd1, 70, 90),
+        flatShading: true,
+        transparent: true,
+        opacity: 0.92,
+        roughness: 1,
+      }),
     )
     water.rotation.x = -Math.PI / 2
     water.position.set(coast.center.x + 55, -0.08, coast.center.z)
@@ -98,7 +115,13 @@ export class World {
     const river = BIOMES.river!
     const riverMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(14, 80),
-      new THREE.MeshStandardMaterial({ color: 0x4f9fd8, flatShading: true, transparent: true, opacity: 0.92 }),
+      new THREE.MeshStandardMaterial({
+        map: tiledBlockTexture(0x4f9fd8, 14, 80),
+        flatShading: true,
+        transparent: true,
+        opacity: 0.92,
+        roughness: 1,
+      }),
     )
     riverMesh.rotation.x = -Math.PI / 2
     riverMesh.rotation.z = 0.25
@@ -107,35 +130,36 @@ export class World {
   }
 
   private buildFarmHub(): void {
-    // 울타리 (기둥을 원형으로 배치, 출입구 부분은 비워둔다)
-    const postMat = new THREE.MeshStandardMaterial({ color: 0x8a6339, flatShading: true })
+    // 울타리 (각진 기둥을 원형으로 배치, 출입구 부분은 비워둔다)
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x8a6339, flatShading: true, roughness: 1 })
     const postCount = 28
     for (let i = 0; i < postCount; i++) {
       const angle = (i / postCount) * Math.PI * 2
       // 남쪽(플레이어 스폰 방향)에 출입구를 남겨둔다
       if (angle > Math.PI * 0.85 && angle < Math.PI * 1.15) continue
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.1, 6), postMat)
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.1, 0.22), postMat)
       post.position.set(Math.cos(angle) * this.penRadius, 0.55, Math.sin(angle) * this.penRadius)
       post.castShadow = true
       this.scene.add(post)
     }
 
-    // 헛간
+    // 헛간 (박공지붕도 두 개의 각진 슬래브로 표현)
     const barn = new THREE.Group()
     const barnBody = new THREE.Mesh(
       new THREE.BoxGeometry(3.2, 2.2, 2.6),
-      new THREE.MeshStandardMaterial({ color: 0xb5453a, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0xb5453a, flatShading: true, roughness: 1 }),
     )
     barnBody.position.y = 1.1
     barnBody.castShadow = true
     barn.add(barnBody)
-    const barnRoof = new THREE.Mesh(
-      new THREE.ConeGeometry(2.4, 1.3, 4),
-      new THREE.MeshStandardMaterial({ color: 0x6b3d2e, flatShading: true }),
-    )
-    barnRoof.position.y = 2.85
-    barnRoof.rotation.y = Math.PI / 4
-    barn.add(barnRoof)
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x6b3d2e, flatShading: true, roughness: 1 })
+    for (const side of [-1, 1]) {
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.2, 2.0), roofMat)
+      slab.position.set(0, 2.35, side * 0.62)
+      slab.rotation.x = side * 0.55
+      slab.castShadow = true
+      barn.add(slab)
+    }
     barn.position.set(-6, 0, 3)
     barn.rotation.y = 0.4
     this.scene.add(barn)
@@ -303,54 +327,74 @@ function randomInBiome(biome: BiomeDef, rng: () => number, margin: number): THRE
 
 function buildTree(pos: THREE.Vector3, scale: number): THREE.Group {
   const g = new THREE.Group()
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.15 * scale, 0.2 * scale, 1.2 * scale, 6),
-    new THREE.MeshStandardMaterial({ color: 0x7a5233, flatShading: true }),
-  )
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a5233, flatShading: true, roughness: 1 })
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.3 * scale, 1.2 * scale, 0.3 * scale), trunkMat)
   trunk.position.y = 0.6 * scale
   trunk.castShadow = true
   g.add(trunk)
-  const foliage = new THREE.Mesh(
-    new THREE.ConeGeometry(0.9 * scale, 1.7 * scale, 7),
-    new THREE.MeshStandardMaterial({ color: 0x4f9a4a, flatShading: true }),
-  )
-  foliage.position.y = 1.55 * scale
-  foliage.castShadow = true
-  g.add(foliage)
+
+  // 잎사귀는 각기 다른 크기의 상자를 겹쳐 쌓아 블록형 나무 수관을 만든다
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x4f9a4a, flatShading: true, roughness: 1 })
+  const lower = new THREE.Mesh(new THREE.BoxGeometry(1.5 * scale, 0.8 * scale, 1.5 * scale), leafMat)
+  lower.position.y = 1.35 * scale
+  lower.castShadow = true
+  g.add(lower)
+  const upper = new THREE.Mesh(new THREE.BoxGeometry(1.0 * scale, 0.75 * scale, 1.0 * scale), leafMat)
+  upper.position.y = 1.95 * scale
+  upper.castShadow = true
+  g.add(upper)
+
   g.position.copy(pos)
   return g
 }
 
-function buildRock(pos: THREE.Vector3, scale: number): THREE.Mesh {
-  const rock = new THREE.Mesh(
-    new THREE.DodecahedronGeometry(0.5 * scale, 0),
-    new THREE.MeshStandardMaterial({ color: 0x8f8b83, flatShading: true }),
-  )
-  rock.position.copy(pos)
-  rock.position.y = 0.25 * scale
-  rock.rotation.set(Math.random(), Math.random(), Math.random())
-  rock.castShadow = true
-  return rock
+function buildRock(pos: THREE.Vector3, scale: number): THREE.Group {
+  const g = new THREE.Group()
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x8f8b83, flatShading: true, roughness: 1 })
+  // 크기가 다른 상자 2~3개를 겹쳐서 각진 돌무더기를 표현한다
+  const main = new THREE.Mesh(new THREE.BoxGeometry(0.9 * scale, 0.7 * scale, 0.8 * scale), rockMat)
+  main.position.y = 0.35 * scale
+  main.rotation.y = Math.random() * Math.PI
+  main.castShadow = true
+  g.add(main)
+  const small = new THREE.Mesh(new THREE.BoxGeometry(0.5 * scale, 0.45 * scale, 0.5 * scale), rockMat)
+  small.position.set(0.35 * scale, 0.22 * scale, -0.3 * scale)
+  small.rotation.y = Math.random() * Math.PI
+  small.castShadow = true
+  g.add(small)
+  g.position.copy(pos)
+  g.rotation.y = Math.random() * Math.PI * 2
+  return g
 }
 
-function buildMountainPeak(pos: THREE.Vector3, scale: number): THREE.Mesh {
-  const peak = new THREE.Mesh(
-    new THREE.ConeGeometry(scale * 0.8, scale, 6),
-    new THREE.MeshStandardMaterial({ color: 0x7d7d78, flatShading: true }),
-  )
-  peak.position.copy(pos)
-  peak.position.y = scale / 2
-  return peak
+function buildMountainPeak(pos: THREE.Vector3, scale: number): THREE.Group {
+  const g = new THREE.Group()
+  const mat = new THREE.MeshStandardMaterial({ color: 0x7d7d78, flatShading: true, roughness: 1 })
+  // 위로 갈수록 작아지는 상자를 쌓아 각진 산 실루엣을 만든다
+  const tiers = 4
+  let y = 0
+  for (let i = 0; i < tiers; i++) {
+    const t = i / (tiers - 1)
+    const size = scale * (1 - t * 0.65)
+    const height = scale * 0.4
+    const tier = new THREE.Mesh(new THREE.BoxGeometry(size, height, size), mat)
+    tier.position.y = y + height / 2
+    tier.rotation.y = i * 0.4
+    g.add(tier)
+    y += height * 0.85
+  }
+  g.position.copy(pos)
+  return g
 }
 
 function buildReed(pos: THREE.Vector3): THREE.Group {
   const g = new THREE.Group()
+  const mat = new THREE.MeshStandardMaterial({ color: 0x5fa04a, flatShading: true, roughness: 1 })
   for (let i = 0; i < 3; i++) {
-    const blade = new THREE.Mesh(
-      new THREE.ConeGeometry(0.03, 0.6 + Math.random() * 0.3, 4),
-      new THREE.MeshStandardMaterial({ color: 0x5fa04a, flatShading: true }),
-    )
-    blade.position.set((Math.random() - 0.5) * 0.2, 0.3, (Math.random() - 0.5) * 0.2)
+    const height = 0.6 + Math.random() * 0.3
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, height, 0.05), mat)
+    blade.position.set((Math.random() - 0.5) * 0.2, height / 2, (Math.random() - 0.5) * 0.2)
+    blade.rotation.y = Math.random() * Math.PI
     g.add(blade)
   }
   g.position.copy(pos)
