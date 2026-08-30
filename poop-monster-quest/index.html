@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>똥괴물 대소동 - 마을을 구해라!</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="hit-flash"></div>
+
+  <!-- 시작 화면 -->
+  <div id="start-screen" class="overlay">
+    <div class="panel">
+      <h1>💩 똥괴물 대소동 💩</h1>
+      <h2>마을을 구해라!</h2>
+      <p class="story">
+        똥괴물들이 마을을 온통 더럽혀 놓았어요!<br />
+        용사가 되어 똥괴물을 물리치고, 갇혀있는 친구들을 구출해서<br />
+        마을을 다시 깨끗하게 만들어주세요!
+      </p>
+      <div class="howto">
+        <h3>조작 방법</h3>
+        <ul>
+          <li><b>W A S D</b> : 이동</li>
+          <li><b>마우스 클릭</b> : 칼 던지기 (똥괴물 공격 / 똥 없애기)</li>
+          <li><b>스페이스바</b> : 칼 휘두르기 (날아오는 똥을 튕겨내기!)</li>
+          <li><b>I</b> : 인벤토리 열기/닫기</li>
+          <li><b>K</b> : 스킬트리 열기/닫기</li>
+        </ul>
+      </div>
+      <button id="start-btn">🗡️ 모험 시작하기</button>
+    </div>
+  </div>
+
+  <!-- 게임 종료 화면 -->
+  <div id="end-screen" class="overlay hidden">
+    <div class="panel">
+      <h1 id="end-title"></h1>
+      <p id="end-desc"></p>
+      <button id="retry-btn">다시 도전하기</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="top-left">
+      <div class="bar-label">❤️ 체력</div>
+      <div class="bar-bg"><div id="health-bar" class="bar-fill health"></div></div>
+      <div class="bar-label">⚡ 에너지</div>
+      <div class="bar-bg"><div id="energy-bar" class="bar-fill energy"></div></div>
+    </div>
+
+    <div id="top-right">
+      <div class="counter">👦 구조한 친구: <span id="rescued-count">0</span> / <span id="rescued-total">0</span></div>
+      <div class="counter">💩 물리친 똥괴물: <span id="killed-count">0</span> / <span id="killed-total">0</span></div>
+      <div class="counter">🪙 코인: <span id="coin-count">0</span></div>
+    </div>
+
+    <div id="bottom-hint">
+      WASD 이동 · 클릭 칼던지기 · 스페이스 방어 · I 인벤토리 · K 스킬트리
+    </div>
+
+    <div id="quest-toast" class="hidden"></div>
+  </div>
+
+  <!-- 인벤토리 -->
+  <div id="inventory-panel" class="panel side-panel hidden">
+    <h3>🎒 인벤토리</h3>
+    <div class="inv-item" id="inv-heal">
+      <span>❤️‍🩹 회복 물약</span>
+      <span class="inv-count" id="heal-count">0</span>
+      <button class="use-btn" data-use="heal">사용</button>
+    </div>
+    <div class="inv-item" id="inv-energy">
+      <span>🔋 에너지 물약</span>
+      <span class="inv-count" id="energy-count">0</span>
+      <button class="use-btn" data-use="energy">사용</button>
+    </div>
+    <div class="inv-item">
+      <span>🪙 코인</span>
+      <span class="inv-count" id="inv-coin-count">0</span>
+      <span class="hint-small">스킬트리(K)에서 사용</span>
+    </div>
+    <p class="close-hint">닫으려면 I 를 눌러주세요</p>
+  </div>
+
+  <!-- 스킬트리 -->
+  <div id="skill-panel" class="panel side-panel hidden">
+    <h3>🌟 스킬트리</h3>
+    <div class="skill-row">
+      <div class="skill-info">
+        <span>⚔️ 공격력 강화</span>
+        <span id="skill-attack-level" class="skill-level">Lv.0</span>
+      </div>
+      <button class="skill-btn" data-skill="attack">강화 (<span id="cost-attack">10</span>🪙)</button>
+    </div>
+    <div class="skill-row">
+      <div class="skill-info">
+        <span>🏃 이동속도 강화</span>
+        <span id="skill-speed-level" class="skill-level">Lv.0</span>
+      </div>
+      <button class="skill-btn" data-skill="speed">강화 (<span id="cost-speed">10</span>🪙)</button>
+    </div>
+    <div class="skill-row">
+      <div class="skill-info">
+        <span>⚡ 에너지 회복 강화</span>
+        <span id="skill-energy-level" class="skill-level">Lv.0</span>
+      </div>
+      <button class="skill-btn" data-skill="energy">강화 (<span id="cost-energy">10</span>🪙)</button>
+    </div>
+    <p class="close-hint">닫으려면 K 를 눌러주세요</p>
+  </div>
+
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
