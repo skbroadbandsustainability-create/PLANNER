@@ -5,12 +5,19 @@ import { Animal, type Bounds } from './Animal.ts'
 import { NPC } from './NPC.ts'
 
 const WORLD_HALF_EXTENT = 95
-const INITIAL_PER_SPECIES = 4
 const RESPAWN_SECONDS = 32
+
+/** 포획 난이도(밧줄 등급)가 높을수록 희귀한 동물이므로 초기 개체 수를 줄인다. */
+function initialCountFor(species: SpeciesDef): number {
+  if (species.requiredRopeTier >= 2) return 1
+  if (species.requiredRopeTier === 1) return 2
+  return 3
+}
 
 interface SpawnGroup {
   species: SpeciesDef
   bounds: Bounds
+  targetCount: number
   alive: Animal[]
   respawnTimer: number
 }
@@ -21,7 +28,7 @@ export class World {
   readonly animals: Animal[] = []
   readonly npc: NPC
   readonly penCenter = new THREE.Vector3(0, 0, 0)
-  readonly penRadius = 8.5
+  readonly penRadius = 11
 
   private spawnGroups: SpawnGroup[] = []
 
@@ -179,9 +186,10 @@ export class World {
     for (const species of SPECIES) {
       const biome = BIOMES[species.biome]
       if (!biome) continue
-      const bounds = biomeBounds(biome)
-      const group: SpawnGroup = { species, bounds, alive: [], respawnTimer: 0 }
-      for (let i = 0; i < INITIAL_PER_SPECIES; i++) {
+      const bounds = species.swimsInWater ? waterBounds(biome) : biomeBounds(biome)
+      const targetCount = initialCountFor(species)
+      const group: SpawnGroup = { species, bounds, targetCount, alive: [], respawnTimer: 0 }
+      for (let i = 0; i < targetCount; i++) {
         this.spawnOne(group)
       }
       this.spawnGroups.push(group)
@@ -205,7 +213,7 @@ export class World {
 
     for (const group of this.spawnGroups) {
       group.alive = group.alive.filter((a) => a.state === 'wild')
-      if (group.alive.length < INITIAL_PER_SPECIES) {
+      if (group.alive.length < group.targetCount) {
         group.respawnTimer -= dt
         if (group.respawnTimer <= 0) {
           group.respawnTimer = RESPAWN_SECONDS
@@ -256,11 +264,27 @@ export class World {
 
 function biomeBounds(biome: BiomeDef): Bounds {
   return {
-    minX: biome.center.x - biome.halfSize * 0.85,
-    maxX: biome.center.x + biome.halfSize * 0.85,
-    minZ: biome.center.z - biome.halfSize * 0.85,
-    maxZ: biome.center.z + biome.halfSize * 0.85,
+    // 0.7 = 원형 바이옴 패치(반지름 halfSize) 안에 완전히 들어가는 정사각형의 절반 크기(1/sqrt(2))
+    minX: biome.center.x - biome.halfSize * 0.7,
+    maxX: biome.center.x + biome.halfSize * 0.7,
+    minZ: biome.center.z - biome.halfSize * 0.7,
+    maxZ: biome.center.z + biome.halfSize * 0.7,
   }
+}
+
+/**
+ * 완전히 물속에서 사는 종(불가사리/바다거북/문어/조개/잉어/송어)을 위한 서식 범위.
+ * buildGround()에서 그린 실제 수면 위치(바다는 바이옴 동쪽 절반, 강은 중심을 가로지르는 좁은 물줄기)에 맞춘 근사치다.
+ */
+function waterBounds(biome: BiomeDef): Bounds {
+  const b = biomeBounds(biome)
+  if (biome.id === 'coast') {
+    return { ...b, minX: biome.center.x }
+  }
+  if (biome.id === 'river') {
+    return { ...b, minX: biome.center.x - 8, maxX: biome.center.x + 8 }
+  }
+  return b
 }
 
 function randomPointInBounds(b: Bounds): THREE.Vector3 {

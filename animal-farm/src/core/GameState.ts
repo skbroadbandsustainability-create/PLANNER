@@ -42,7 +42,7 @@ export class GameState {
   }
 
   get penCapacity(): number {
-    return BASE_PEN_CAPACITY + (this.unlockedSkills.has('penExpansion') ? 5 : 0)
+    return BASE_PEN_CAPACITY + (this.unlockedSkills.has('penExpansion') ? 12 : 0)
   }
 
   get maxRopes(): number {

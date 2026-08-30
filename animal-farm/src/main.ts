@@ -61,9 +61,10 @@ const ui = new UI(app, state)
 camera.position.set(14, 12, 20)
 camera.lookAt(0, 1, 0)
 
+const debugState = { freezeCamera: false }
 if (import.meta.env.DEV) {
   // 개발 중 수동/자동 테스트 편의를 위한 디버그 훅 (프로덕션 빌드에는 포함되지 않음)
-  ;(window as unknown as { __debug: unknown }).__debug = { world, player, state, rope, camera }
+  ;(window as unknown as { __debug: unknown }).__debug = { world, player, state, rope, camera, debugState }
 }
 
 window.addEventListener('resize', () => {
@@ -209,6 +210,7 @@ startScreen.querySelector('.start-btn')!.addEventListener('click', () => {
 })
 
 function updateCamera(dt: number): void {
+  if (debugState.freezeCamera) return
   const facing = player.facing
   const desired = new THREE.Vector3(
     player.position.x - facing.x * 7.5,

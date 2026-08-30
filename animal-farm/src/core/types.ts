@@ -12,7 +12,26 @@ export type ItemId =
   | 'ropeThread' // 밧줄 재료(실)
 
 export type EarType = 'long' | 'short' | 'floppy' | 'none'
-export type TailType = 'fluffy' | 'thin' | 'stub' | 'none'
+export type TailType = 'fluffy' | 'thin' | 'stub' | 'paddle' | 'fan' | 'none'
+export type WingType = 'none' | 'small' | 'large'
+export type HornStyle = 'straight' | 'antler'
+
+/**
+ * 몸체의 기본 형태.
+ * quadruped/biped/flat(게)은 기존 사족보행/이족보행/납작 몸통 방식이고,
+ * shell/clamshell/starfish/octopus/fish/serpent/insect는 새로 추가된 특수 체형이다.
+ */
+export type BodyShape =
+  | 'quadruped'
+  | 'biped'
+  | 'flat'
+  | 'shell'
+  | 'clamshell'
+  | 'starfish'
+  | 'octopus'
+  | 'fish'
+  | 'serpent'
+  | 'insect'
 
 export interface SpeciesDef {
   id: string
@@ -22,12 +41,16 @@ export interface SpeciesDef {
   accentColor: number
   scale: number
   wanderSpeed: number
+  bodyShape: BodyShape
   earType: EarType
   tailType: TailType
+  wingType: WingType
   hasHorns: boolean
+  hornStyle: HornStyle
   hasBeak: boolean
+  hasLongNeck: boolean // 두루미/왜가리처럼 목이 긴 경우
   legCount: 4 | 2 | 0
-  flat: boolean // 게처럼 납작한 형태
+  swimsInWater: boolean // true면 바이옴의 물 영역 안에서만 서식한다
   requiredRopeTier: number // 포획에 필요한 최소 밧줄 등급 (0=기본)
   dropItem: ItemId
   cryFreq: number // 울음 소리 기본 주파수(Hz)
