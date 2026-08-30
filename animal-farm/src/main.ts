@@ -6,7 +6,7 @@ import { EffectsManager } from './fx/Effects.ts'
 import { Player, type MoveInput } from './player/Player.ts'
 import { RopeController } from './player/RopeController.ts'
 import { UI } from './ui/UI.ts'
-import { World } from './world/World.ts'
+import { World, type HarvestNode } from './world/World.ts'
 import type { Animal } from './world/Animal.ts'
 
 const app = document.getElementById('app')
@@ -26,10 +26,11 @@ startScreen.innerHTML = `
   <div class="controls-box">
     ⬆️⬇️⬅️➡️ (또는 WASD) : 이동<br/>
     Space : 점프<br/>
-    마우스 클릭 : 동물에게 밧줄 던지기 (가까이 다가가야 해요)<br/>
-    우클릭 / Q : 밧줄 풀기<br/>
+    마우스 클릭 : 동물에게 밧줄 던지기 / 나무·바위 채집 (가까이 다가가야 해요)<br/>
+    우클릭 / Q : 밧줄 풀기 · 밧줄은 인벤토리에서 여러 개로 늘릴 수 있어요<br/>
     F : 근처 NPC와 상호작용<br/>
-    I : 인벤토리 · L : 퀘스트 · K : 스킬 트리
+    I : 인벤토리 · L : 퀘스트 · K : 스킬 트리<br/>
+    🐦 나는 동물은 땅이나 물 위에 앉아 있을 때만, 🐚 조개·게는 땅 위로 나와 있을 때만 포획할 수 있어요
   </div>
   <button class="start-btn">농장 시작하기 🌱</button>
 `
@@ -129,11 +130,13 @@ renderer.domElement.addEventListener('click', (e) => {
   )
   const raycaster = new THREE.Raycaster()
   raycaster.setFromCamera(ndc, camera)
-  const meshes = world.animals.map((a) => a.mesh)
-  const hits = raycaster.intersectObjects(meshes, true)
+  const animalMeshes = world.animals.map((a) => a.mesh)
+  const harvestMeshes = world.harvestObjects
+  const hits = raycaster.intersectObjects([...animalMeshes, ...harvestMeshes], true)
   if (hits.length === 0) return
+  const hitObject = hits[0]!.object
 
-  let obj: THREE.Object3D | null = hits[0]!.object
+  let obj: THREE.Object3D | null = hitObject
   let animalId: number | undefined
   while (obj) {
     if (typeof obj.userData.animalId === 'number') {
@@ -142,10 +145,14 @@ renderer.domElement.addEventListener('click', (e) => {
     }
     obj = obj.parent
   }
-  if (animalId === undefined) return
-  const animal = world.animals.find((a) => a.id === animalId)
-  if (!animal) return
-  attemptCapture(animal)
+  if (animalId !== undefined) {
+    const animal = world.animals.find((a) => a.id === animalId)
+    if (animal) attemptCapture(animal)
+    return
+  }
+
+  const node = world.findHarvestNode(hitObject)
+  if (node) attemptHarvest(node)
 })
 
 renderer.domElement.addEventListener('contextmenu', (e) => {
@@ -153,8 +160,29 @@ renderer.domElement.addEventListener('contextmenu', (e) => {
   rope.releaseAll()
 })
 
+const HARVEST_REACH = 3.2
+
+function attemptHarvest(node: HarvestNode): void {
+  const dist = player.position.distanceTo(node.object.position)
+  if (dist > HARVEST_REACH) {
+    ui.showToast('가까이 다가가야 채집할 수 있어요', 'warning')
+    return
+  }
+  const message = node.type === 'wood' ? '나무를 얻었어요! (+1)' : '광물을 얻었어요! (+1)'
+  const pos = world.harvest(node)
+  state.addItem(node.type, 1)
+  effects.burst(pos, node.type === 'wood' ? 0x4f9a4a : 0x8f8b83)
+  ui.showToast(message, 'success')
+  ui.refreshHUD()
+}
+
 function attemptCapture(animal: Animal): void {
-  if (animal.state !== 'wild') return
+  if (!animal.capturable) {
+    if (animal.isAirborne) {
+      ui.showToast(`${animal.species.name}이(가) 날고 있어요! 땅이나 물 위에 앉을 때까지 기다리세요`, 'warning')
+    }
+    return
+  }
   const range = state.ropeTier.range + state.ropeRangeBonus
   const dist = player.position.distanceTo(animal.position)
   if (dist > range) {
@@ -258,6 +286,7 @@ function frame(): void {
     const moveInput = readMoveInput()
     player.update(dt, moveInput, state.moveSpeedMultiplier)
     world.clampToWorld(player.position)
+    world.resolveCollision(player.position)
 
     world.update(dt, (animal) => {
       const dist = player.position.distanceTo(animal.position)

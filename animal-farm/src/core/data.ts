@@ -9,29 +9,30 @@ export const BIOMES: Record<string, BiomeDef> = {
     id: 'grassland',
     name: '초원',
     groundColor: 0x7bc95a,
-    center: { x: 0, z: -55 },
-    halfSize: 32,
+    center: { x: 0, z: -92 },
+    halfSize: 58,
   },
   coast: {
     id: 'coast',
     name: '바다',
+    // 해안(모래) 톤 - 실제 바다색 블렌딩은 World.ts에서 별도로 처리한다
     groundColor: 0xe4d9a5,
-    center: { x: 55, z: 0 },
-    halfSize: 32,
+    center: { x: 92, z: 0 },
+    halfSize: 58,
   },
   mountain: {
     id: 'mountain',
     name: '산',
     groundColor: 0x9a9a92,
-    center: { x: 0, z: 55 },
-    halfSize: 32,
+    center: { x: 0, z: 92 },
+    halfSize: 58,
   },
   river: {
     id: 'river',
     name: '강',
     groundColor: 0x8fc46a,
-    center: { x: -55, z: 0 },
-    halfSize: 32,
+    center: { x: -92, z: 0 },
+    halfSize: 58,
   },
 }
 
@@ -51,6 +52,7 @@ const SPECIES_DEFAULTS = {
   hasLongNeck: false,
   legCount: 4 as const,
   swimsInWater: false,
+  canBurrow: false,
 }
 
 function mkSpecies(
@@ -141,7 +143,7 @@ export const SPECIES: SpeciesDef[] = [
   mkSpecies({
     id: 'crab', name: '게', biome: 'coast',
     bodyColor: 0xd94f3d, accentColor: 0xb33a2b, scale: 0.45, wanderSpeed: 1.0,
-    bodyShape: 'flat',
+    bodyShape: 'flat', canBurrow: true,
     requiredRopeTier: 0, dropItem: 'shell', cryFreq: 1200, cryType: 'square', cryLength: 0.08,
   }),
   mkSpecies({
@@ -183,7 +185,7 @@ export const SPECIES: SpeciesDef[] = [
   mkSpecies({
     id: 'clam', name: '조개', biome: 'coast',
     bodyColor: 0xe8e0d0, accentColor: 0xc9b8a0, scale: 0.3, wanderSpeed: 0.15,
-    bodyShape: 'clamshell', swimsInWater: true, legCount: 0,
+    bodyShape: 'clamshell', swimsInWater: true, legCount: 0, canBurrow: true,
     requiredRopeTier: 0, dropItem: 'shell', cryFreq: 900, cryType: 'square', cryLength: 0.06,
   }),
   mkSpecies({
@@ -337,16 +339,20 @@ export const ROPE_TIERS: RopeTierDef[] = [
     name: '강화 밧줄',
     range: 5.5,
     dragSpeed: 2.1,
-    recipe: { ropeThread: 3, wool: 2 },
+    recipe: { ropeThread: 3, wool: 2, wood: 2 },
   },
   {
     id: 2,
     name: '황금 올가미',
     range: 7,
     dragSpeed: 2.8,
-    recipe: { ropeThread: 5, fur: 3, shell: 2 },
+    recipe: { ropeThread: 5, fur: 3, shell: 2, ore: 3 },
   },
 ]
+
+/** 여벌 밧줄 제작 - 재료를 소모해 동시 포획 가능 수를 영구적으로 1개씩 늘린다 */
+export const SPARE_ROPE_RECIPE: Partial<Record<ItemId, number>> = { ropeThread: 2, wood: 1 }
+export const MAX_SPARE_ROPES = 3
 
 // ---------------------------------------------------------------------------
 // 스킬 트리
@@ -383,7 +389,7 @@ export const SKILLS: SkillDef[] = [
   {
     id: 'multiLasso',
     name: '다중 포획',
-    desc: '동시에 밧줄 2개를 사용할 수 있어요.',
+    desc: '동시에 사용할 수 있는 밧줄이 1개 늘어나요.',
     cost: 3,
     requires: ['animalBond', 'penExpansion'],
   },
@@ -425,6 +431,8 @@ export const ITEM_NAMES: Record<string, string> = {
   reed: '갈대',
   fur: '모피',
   ropeThread: '밧줄실',
+  wood: '나무',
+  ore: '광물',
 }
 
 export const ITEM_EMOJI: Record<string, string> = {
@@ -435,6 +443,8 @@ export const ITEM_EMOJI: Record<string, string> = {
   reed: '🌿',
   fur: '🐾',
   ropeThread: '🧵',
+  wood: '🪵',
+  ore: '⛏️',
 }
 
 export interface ShopOffer {
@@ -451,11 +461,13 @@ export const SHOP_OFFERS: ShopOffer[] = [
   { id: 'shell-feed', give: { shell: 2 }, get: { feed: 1 }, label: '조개 2개 → 사료 1개' },
   { id: 'reed-feed', give: { reed: 3 }, get: { feed: 1 }, label: '갈대 3개 → 사료 1개' },
   { id: 'fur-feed', give: { fur: 2 }, get: { feed: 2 }, label: '모피 2개 → 사료 2개' },
+  { id: 'wood-feed', give: { wood: 3 }, get: { feed: 1 }, label: '나무 3개 → 사료 1개' },
+  { id: 'ore-feed', give: { ore: 2 }, get: { feed: 2 }, label: '광물 2개 → 사료 2개' },
   { id: 'feed-thread', give: { feed: 3 }, get: { ropeThread: 2 }, label: '사료 3개 → 밧줄실 2개' },
 ]
 
 export const BASE_PEN_CAPACITY = 24
-export const BASE_ROPE_COUNT = 1
+export const BASE_ROPE_COUNT = 2
 
 export function xpToNextLevel(level: number): number {
   return Math.round(40 * Math.pow(level, 1.3) + 20)

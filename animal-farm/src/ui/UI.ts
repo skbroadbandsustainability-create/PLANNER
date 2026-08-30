@@ -1,10 +1,12 @@
 import {
   ITEM_EMOJI,
   ITEM_NAMES,
+  MAX_SPARE_ROPES,
   QUESTS,
   ROPE_TIERS,
   SHOP_OFFERS,
   SKILLS,
+  SPARE_ROPE_RECIPE,
   SPECIES,
 } from '../core/data.ts'
 import { GameState } from '../core/GameState.ts'
@@ -271,6 +273,29 @@ export class UI {
         row.append(info, btn)
         this.panelCard.append(row)
       }
+
+      // 여벌 밧줄 제작 - 재료를 소모해 동시에 포획할 수 있는 동물 수를 늘린다
+      const spareRow = el('div', 'recipe-row')
+      const spareInfo = el('div', 'info')
+      if (this.state.spareRopes >= MAX_SPARE_ROPES) {
+        spareInfo.append(el('div', undefined, `여벌 밧줄 (최대 ${MAX_SPARE_ROPES}개 모두 제작함)`))
+      } else {
+        spareInfo.append(
+          el('div', undefined, `여벌 밧줄 만들기 (동시 포획 +1, 현재 +${this.state.spareRopes})`),
+          el('div', 'cost', `필요: ${fmtRecipe(SPARE_ROPE_RECIPE)}`),
+        )
+      }
+      const spareBtn = el('button', 'action-btn', '제작하기')
+      spareBtn.disabled = !this.state.canCraftSpareRope()
+      spareBtn.addEventListener('click', () => {
+        if (this.state.craftSpareRope()) {
+          this.showToast('여벌 밧줄을 만들었어요! 동시 포획 수 +1', 'success')
+          this.refreshHUD()
+          this.renderPanel()
+        }
+      })
+      spareRow.append(spareInfo, spareBtn)
+      this.panelCard.append(spareRow)
     }
   }
 

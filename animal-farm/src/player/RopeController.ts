@@ -24,6 +24,7 @@ export class RopeController {
   }
 
   attach(animal: Animal): void {
+    animal.resetSpecialState()
     animal.state = 'roped'
     const geometry = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(),

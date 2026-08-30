@@ -1,9 +1,11 @@
 import {
   BASE_PEN_CAPACITY,
   BASE_ROPE_COUNT,
+  MAX_SPARE_ROPES,
   QUESTS,
   ROPE_TIERS,
   SKILLS_BY_ID,
+  SPARE_ROPE_RECIPE,
   SPECIES_BY_ID,
   xpToNextLevel,
 } from './data.ts'
@@ -26,6 +28,7 @@ export class GameState {
   inventory: InventoryState = { feed: 2 }
   unlockedSkills = new Set<SkillId>()
   ropeTierId = 0
+  spareRopes = 0
 
   /** 종별 누적 구조 마리 수 (퀘스트 진행도 계산용) */
   deliveredCounts: Record<string, number> = {}
@@ -46,7 +49,19 @@ export class GameState {
   }
 
   get maxRopes(): number {
-    return BASE_ROPE_COUNT + (this.unlockedSkills.has('multiLasso') ? 1 : 0)
+    return BASE_ROPE_COUNT + this.spareRopes + (this.unlockedSkills.has('multiLasso') ? 1 : 0)
+  }
+
+  canCraftSpareRope(): boolean {
+    return this.spareRopes < MAX_SPARE_ROPES && this.canAfford(SPARE_ROPE_RECIPE)
+  }
+
+  /** 재료를 소모해 동시에 사용할 수 있는 밧줄 개수를 1개 늘린다 */
+  craftSpareRope(): boolean {
+    if (!this.canCraftSpareRope()) return false
+    this.spend(SPARE_ROPE_RECIPE)
+    this.spareRopes += 1
+    return true
   }
 
   get penTotal(): number {
