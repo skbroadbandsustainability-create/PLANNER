@@ -3,6 +3,7 @@ import { usePlanner } from '../store/plannerStore'
 import { formatKoreanDate, parseDateKey, todayKey, toDateKey } from '../utils/date'
 import { DEFAULT_SUBJECTS, subjectColor } from '../types'
 import type { Task } from '../types'
+import SyncPanel from './SyncPanel'
 
 const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -93,6 +94,10 @@ export default function ManageView() {
           placeholder="아이 이름을 입력하세요"
         />
       </section>
+
+      <div className="mt-5">
+        <SyncPanel />
+      </div>
 
       <section className="mt-5 rounded-3xl border-2 border-slate-100 bg-white p-5">
         <h3 className="font-display text-xl text-slate-700">🎁 보상 목표 설정</h3>
