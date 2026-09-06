@@ -145,9 +145,18 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     unsubscribeRef.current?.()
     setSyncStatus('connecting')
     setSyncError(null)
+
+    // 연결이 응답 없이 계속 "연결 중"에 머무르지 않도록, 일정 시간 안에
+    // 첫 응답이 없으면 네트워크 문제로 안내한다.
+    const timeoutId = setTimeout(() => {
+      setSyncStatus('error')
+      setSyncError('연동 서버에 연결하지 못했어요. 와이파이/데이터 연결을 확인해 주세요.')
+    }, 15000)
+
     unsubscribeRef.current = subscribeState(
       code,
       (data) => {
+        clearTimeout(timeoutId)
         setSyncStatus('connected')
         if (data.rev > knownRevRef.current) {
           knownRevRef.current = data.rev
@@ -156,6 +165,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         }
       },
       () => {
+        clearTimeout(timeoutId)
         setSyncStatus('error')
         setSyncError('연동 서버에 연결하지 못했어요.')
       },
