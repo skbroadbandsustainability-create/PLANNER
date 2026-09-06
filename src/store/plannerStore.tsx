@@ -123,6 +123,11 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const knownRevRef = useRef(0)
   const suppressNextPushRef = useRef(false)
   const unsubscribeRef = useRef<null | (() => void)>(null)
+  // 저장 요청을 순서대로 하나씩만 보내기 위한 큐. 짧은 시간에 여러 번 바뀌면
+  // (예: 할 일을 연달아 추가) 저장 요청들이 네트워크에서 순서가 뒤바뀌어 먼저
+  // 보낸 게 나중에 도착해서 최신 내용을 덮어써버릴 수 있어, 반드시 이전 저장이
+  // 끝난 뒤에 다음 저장을 보내도록 체인으로 묶는다.
+  const pushChainRef = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -135,9 +140,14 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       return
     }
     if (!syncCode) return
+    const code = syncCode
+    const snapshot = state
     const nextRev = knownRevRef.current + 1
     knownRevRef.current = nextRev
-    pushState(syncCode, state, nextRev).catch(() => setSyncError('저장에 실패했어요. 인터넷 연결을 확인해 주세요.'))
+    pushChainRef.current = pushChainRef.current
+      .catch(() => {})
+      .then(() => pushState(code, snapshot, nextRev))
+      .catch(() => setSyncError('저장에 실패했어요. 인터넷 연결을 확인해 주세요.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
