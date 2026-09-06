@@ -4,6 +4,7 @@ import { formatKoreanDate, parseDateKey, todayKey, toDateKey } from '../utils/da
 import { DEFAULT_SUBJECTS, subjectColor } from '../types'
 import type { Task } from '../types'
 import SyncPanel from './SyncPanel'
+import BackupPanel from './BackupPanel'
 
 const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -97,6 +98,10 @@ export default function ManageView() {
 
       <div className="mt-5">
         <SyncPanel />
+      </div>
+
+      <div className="mt-5">
+        <BackupPanel />
       </div>
 
       <section className="mt-5 rounded-3xl border-2 border-slate-100 bg-white p-5">
