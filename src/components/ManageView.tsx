@@ -26,6 +26,8 @@ export default function ManageView() {
   const [repeatDays, setRepeatDays] = useState<number[]>([])
   const [repeatWeeks, setRepeatWeeks] = useState(4)
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming')
+  const [quickAddDate, setQuickAddDate] = useState<string | null>(null)
+  const [quickForm, setQuickForm] = useState(() => emptyForm(todayKey()))
 
   const grouped = useMemo(() => {
     const list = [...state.tasks].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
@@ -50,6 +52,24 @@ export default function ManageView() {
     setEditingId(task.id)
     setForm({ date: task.date, time: task.time, subject: task.subject, title: task.title, memo: task.memo ?? '' })
     setRepeatOn(false)
+  }
+
+  function toggleQuickAdd(date: string) {
+    if (quickAddDate === date) {
+      setQuickAddDate(null)
+    } else {
+      setQuickAddDate(date)
+      setQuickForm(emptyForm(date))
+    }
+  }
+
+  function submitQuickAdd(date: string) {
+    if (!quickForm.title.trim()) return
+    dispatch({
+      type: 'ADD_TASK',
+      task: { id: crypto.randomUUID(), ...quickForm, date, title: quickForm.title.trim(), done: false },
+    })
+    setQuickForm(emptyForm(date))
   }
 
   function submit(e: React.FormEvent) {
@@ -317,7 +337,60 @@ export default function ManageView() {
           )}
           {grouped.map(([date, tasks]) => (
             <div key={date}>
-              <p className="font-display text-slate-500">{formatKoreanDate(date)}</p>
+              <div className="flex items-center justify-between">
+                <p className="font-display text-slate-500">{formatKoreanDate(date)}</p>
+                <button
+                  onClick={() => toggleQuickAdd(date)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold active:scale-90 ${
+                    quickAddDate === date ? 'bg-slate-200 text-slate-500' : 'bg-amber-100 text-amber-600'
+                  }`}
+                  aria-label="이 날짜에 계획 추가"
+                >
+                  {quickAddDate === date ? '×' : '+'}
+                </button>
+              </div>
+
+              {quickAddDate === date && (
+                <div className="mt-2 flex flex-col gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="time"
+                      value={quickForm.time}
+                      onChange={(e) => setQuickForm((f) => ({ ...f, time: e.target.value }))}
+                      className="rounded-xl border-2 border-slate-200 bg-white px-2 py-2 text-sm focus:border-amber-300 focus:outline-none"
+                    />
+                    <div className="flex flex-1 flex-wrap gap-1">
+                      {DEFAULT_SUBJECTS.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setQuickForm((f) => ({ ...f, subject: s }))}
+                          className={`rounded-full border-2 px-3 py-1 text-xs font-bold ${
+                            quickForm.subject === s ? subjectColor(s) : 'border-slate-200 bg-white text-slate-400'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={quickForm.title}
+                      onChange={(e) => setQuickForm((f) => ({ ...f, title: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && submitQuickAdd(date)}
+                      placeholder="예: 수학 문제집 3쪽 풀기"
+                      className="flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => submitQuickAdd(date)}
+                      className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-white active:scale-95"
+                    >
+                      추가
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-2 flex flex-col gap-2">
                 {tasks.map((task) => (
                   <div key={task.id} className="flex items-center gap-2 rounded-2xl border-2 border-slate-100 bg-white p-3">
