@@ -1,7 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { DEFAULT_STATE, STORAGE_KEY } from '../types'
 import type { AppState, RewardGoal, Task } from '../types'
+import { isFirebaseConfigured } from '../firebaseConfig'
+import { fetchState, generateSyncCode, pushState, subscribeState } from '../sync'
+
+const SYNC_CODE_KEY = 'kids-planner-sync-code'
+export type SyncStatus = 'off' | 'connecting' | 'connected' | 'error'
 
 type Action =
   | { type: 'ADD_TASK'; task: Task }
@@ -94,18 +99,126 @@ function reducer(state: AppState, action: Action): AppState {
 interface PlannerContextValue {
   state: AppState
   dispatch: React.Dispatch<Action>
+  sync: {
+    available: boolean
+    code: string | null
+    status: SyncStatus
+    error: string | null
+    startSync: () => Promise<string>
+    joinSync: (code: string) => Promise<'joined' | 'not_found'>
+    stopSync: () => void
+  }
 }
 
 const PlannerContext = createContext<PlannerContextValue | null>(null)
 
 export function PlannerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadInitialState)
+  const [syncCode, setSyncCode] = useState<string | null>(() => localStorage.getItem(SYNC_CODE_KEY))
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('off')
+  const [syncError, setSyncError] = useState<string | null>(null)
+
+  // 원격(Firestore)에서 방금 받아온 상태를 로컬에 반영할 때, 그걸 다시 원격으로
+  // 되쏘지 않기 위한 표시. rev는 "몇 번째로 저장된 상태인지" 세는 번호.
+  const knownRevRef = useRef(0)
+  const suppressNextPushRef = useRef(false)
+  const unsubscribeRef = useRef<null | (() => void)>(null)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
-  const value = useMemo(() => ({ state, dispatch }), [state])
+  // 로컬에서 상태가 바뀔 때마다(할 일 체크, 계획 추가 등) 연동 중이면 클라우드에도 반영
+  useEffect(() => {
+    if (suppressNextPushRef.current) {
+      suppressNextPushRef.current = false
+      return
+    }
+    if (!syncCode) return
+    const nextRev = knownRevRef.current + 1
+    knownRevRef.current = nextRev
+    pushState(syncCode, state, nextRev).catch(() => setSyncError('저장에 실패했어요. 인터넷 연결을 확인해 주세요.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state])
+
+  const connect = useCallback((code: string) => {
+    unsubscribeRef.current?.()
+    setSyncStatus('connecting')
+    setSyncError(null)
+    unsubscribeRef.current = subscribeState(
+      code,
+      (data) => {
+        setSyncStatus('connected')
+        if (data.rev > knownRevRef.current) {
+          knownRevRef.current = data.rev
+          suppressNextPushRef.current = true
+          dispatch({ type: 'IMPORT_STATE', state: data.state })
+        }
+      },
+      () => {
+        setSyncStatus('error')
+        setSyncError('연동 서버에 연결하지 못했어요.')
+      },
+    )
+  }, [])
+
+  useEffect(() => {
+    if (syncCode) connect(syncCode)
+    return () => unsubscribeRef.current?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const startSync = useCallback(async () => {
+    const code = generateSyncCode()
+    knownRevRef.current = 1
+    await pushState(code, state, 1)
+    localStorage.setItem(SYNC_CODE_KEY, code)
+    setSyncCode(code)
+    connect(code)
+    return code
+  }, [state, connect])
+
+  const joinSync = useCallback(
+    async (code: string) => {
+      const trimmed = code.trim().toUpperCase()
+      const remote = await fetchState(trimmed)
+      if (!remote) return 'not_found' as const
+      knownRevRef.current = remote.rev
+      suppressNextPushRef.current = true
+      dispatch({ type: 'IMPORT_STATE', state: remote.state })
+      localStorage.setItem(SYNC_CODE_KEY, trimmed)
+      setSyncCode(trimmed)
+      connect(trimmed)
+      return 'joined' as const
+    },
+    [connect],
+  )
+
+  const stopSync = useCallback(() => {
+    unsubscribeRef.current?.()
+    unsubscribeRef.current = null
+    localStorage.removeItem(SYNC_CODE_KEY)
+    setSyncCode(null)
+    setSyncStatus('off')
+    setSyncError(null)
+  }, [])
+
+  const value = useMemo(
+    () => ({
+      state,
+      dispatch,
+      sync: {
+        available: isFirebaseConfigured,
+        code: syncCode,
+        status: syncCode ? syncStatus : 'off' as SyncStatus,
+        error: syncError,
+        startSync,
+        joinSync,
+        stopSync,
+      },
+    }),
+    [state, syncCode, syncStatus, syncError, startSync, joinSync, stopSync],
+  )
 
   return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>
 }
