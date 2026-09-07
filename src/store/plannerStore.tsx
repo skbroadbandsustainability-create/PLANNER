@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { DEFAULT_STATE, STORAGE_KEY } from '../types'
 import type { AppState, RewardGoal, Task } from '../types'
 import { isFirebaseConfigured } from '../firebaseConfig'
-import { fetchState, generateSyncCode, pushState, subscribeState } from '../sync'
+import { fetchState, generateSyncCode, pushState } from '../sync'
 
 const SYNC_CODE_KEY = 'kids-planner-sync-code'
 export type SyncStatus = 'off' | 'connecting' | 'connected' | 'error'
@@ -20,6 +20,10 @@ type Action =
   | { type: 'IMPORT_STATE'; state: AppState }
 
 export const STARS_PER_DAY = 2
+
+// 계속 연결을 붙잡고 있는 실시간 구독 대신, 이 주기마다 한 번씩 서버에 최신
+// 내용이 있는지 물어본다(+ 화면을 다시 볼 때/포커스될 때도 별도로 물어봄).
+const SYNC_POLL_MS = 4000
 
 function loadInitialState(): AppState {
   try {
@@ -129,7 +133,8 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   // (단순 boolean 플래그 대신 상태 객체 자체를 비교하면, 짧은 시간에 원격
   // 갱신이 연달아 와도 각각 정확히 스스로를 구분해서 건너뛸 수 있다.)
   const lastImportedStateRef = useRef<AppState | null>(null)
-  const unsubscribeRef = useRef<null | (() => void)>(null)
+  // 지금 연동 중인 코드에 대해 주기적으로 서버를 확인 중인 타이머(setInterval id).
+  const pollTimerRef = useRef<number | null>(null)
   // 저장 요청을 순서대로 하나씩만 보내기 위한 큐. 짧은 시간에 여러 번 바뀌면
   // (예: 할 일을 연달아 추가) 저장 요청들이 네트워크에서 순서가 뒤바뀌어 먼저
   // 보낸 게 나중에 도착해서 최신 내용을 덮어써버릴 수 있어, 반드시 이전 저장이
@@ -168,42 +173,57 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
-  const connect = useCallback((code: string) => {
-    unsubscribeRef.current?.()
-    setSyncStatus('connecting')
-    setSyncError(null)
-
-    // 연결이 응답 없이 계속 "연결 중"에 머무르지 않도록, 일정 시간 안에
-    // 첫 응답이 없으면 네트워크 문제로 안내한다.
-    const timeoutId = setTimeout(() => {
+  // 서버에 한 번 물어봐서, 이 기기가 알고 있는 것보다 새 내용이 있으면 받아온다.
+  const pullOnce = useCallback(async (code: string) => {
+    try {
+      const remote = await fetchState(code)
+      setSyncStatus('connected')
+      setSyncError(null)
+      if (remote && remote.updatedAtMs > knownUpdatedAtRef.current) {
+        knownUpdatedAtRef.current = remote.updatedAtMs
+        lastImportedStateRef.current = remote.state
+        dispatch({ type: 'IMPORT_STATE', state: remote.state })
+      }
+    } catch {
       setSyncStatus('error')
       setSyncError('연동 서버에 연결하지 못했어요. 와이파이/데이터 연결을 확인해 주세요.')
-    }, 15000)
-
-    unsubscribeRef.current = subscribeState(
-      code,
-      (data) => {
-        clearTimeout(timeoutId)
-        setSyncStatus('connected')
-        if (data.updatedAtMs > knownUpdatedAtRef.current) {
-          knownUpdatedAtRef.current = data.updatedAtMs
-          lastImportedStateRef.current = data.state
-          dispatch({ type: 'IMPORT_STATE', state: data.state })
-        }
-      },
-      () => {
-        clearTimeout(timeoutId)
-        setSyncStatus('error')
-        setSyncError('연동 서버에 연결하지 못했어요.')
-      },
-    )
+    }
   }, [])
+
+  const connect = useCallback(
+    (code: string) => {
+      if (pollTimerRef.current !== null) window.clearInterval(pollTimerRef.current)
+      setSyncStatus('connecting')
+      setSyncError(null)
+      void pullOnce(code)
+      pollTimerRef.current = window.setInterval(() => void pullOnce(code), SYNC_POLL_MS)
+    },
+    [pullOnce],
+  )
 
   useEffect(() => {
     if (syncCode) connect(syncCode)
-    return () => unsubscribeRef.current?.()
+    return () => {
+      if (pollTimerRef.current !== null) window.clearInterval(pollTimerRef.current)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 앱을 다시 열거나(홈 화면 아이콘 등) 다른 탭에서 돌아왔을 때는, 다음 주기적
+  // 확인까지 기다리지 않고 바로 한 번 확인해서 최신 내용을 빨리 보여준다.
+  useEffect(() => {
+    if (!syncCode) return
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'hidden') return
+      void pullOnce(syncCode)
+    }
+    document.addEventListener('visibilitychange', onFocusOrVisible)
+    window.addEventListener('focus', onFocusOrVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onFocusOrVisible)
+      window.removeEventListener('focus', onFocusOrVisible)
+    }
+  }, [syncCode, pullOnce])
 
   const startSync = useCallback(async () => {
     const code = generateSyncCode()
@@ -233,8 +253,8 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   )
 
   const stopSync = useCallback(() => {
-    unsubscribeRef.current?.()
-    unsubscribeRef.current = null
+    if (pollTimerRef.current !== null) window.clearInterval(pollTimerRef.current)
+    pollTimerRef.current = null
     localStorage.removeItem(SYNC_CODE_KEY)
     setSyncCode(null)
     setSyncStatus('off')

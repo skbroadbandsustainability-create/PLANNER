@@ -3,22 +3,25 @@ import type { AppState } from './types'
 
 // firebase SDK는 용량이 커서, 연동 기능을 실제로 쓰기 전까지는 불러오지 않는다
 // (동기화를 안 쓰는 대부분의 사용자는 이 코드를 다운로드하지 않아도 됨).
+//
+// "실시간 구독(onSnapshot)" 방식은 계속 연결을 붙잡고 있는 스트리밍 연결이라
+// 일부 공유기/통신망/브라우저 환경에서 응답 없이 무한정 걸려있는 문제가 있었다.
+// 대신 "필요할 때마다 한 번씩 물어보는(REST 방식)" 가벼운 firestore/lite를 쓰고,
+// 화면(plannerStore.tsx) 쪽에서 주기적으로 + 화면을 다시 볼 때마다 물어보는
+// 방식으로 바꿔서, 매번 짧게 끝나는 요청만 있고 응답 없이 계속 걸려있는 연결
+// 자체가 없도록 한다. (아이 영어단어 앱에서 이미 잘 동작하던 것과 같은 방식)
 let dbInstance: unknown = null
 
 async function loadFirestore() {
-  const [{ initializeApp, getApps, getApp }, firestore] = await Promise.all([
+  const [{ initializeApp, getApps, getApp }, firestoreLite] = await Promise.all([
     import('firebase/app'),
-    import('firebase/firestore'),
+    import('firebase/firestore/lite'),
   ])
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
   if (!dbInstance) {
-    // 일부 공유기/통신망/브라우저 보안 설정에서는 Firestore의 기본 스트리밍 연결이
-    // 응답 없이 계속 대기하는 경우가 있어, 더 호환성 좋은 롱폴링 방식으로 자동 전환한다.
-    dbInstance = firestore.initializeFirestore(app, {
-      experimentalAutoDetectLongPolling: true,
-    })
+    dbInstance = firestoreLite.getFirestore(app)
   }
-  return { db: dbInstance as ReturnType<typeof firestore.getFirestore>, firestore }
+  return { db: dbInstance as ReturnType<typeof firestoreLite.getFirestore>, firestore: firestoreLite }
 }
 
 // 네트워크가 막혀있으면 요청이 응답 없이 무한정 대기할 수 있어서,
@@ -54,18 +57,14 @@ export function generateSyncCode(): string {
   return code
 }
 
-const TIMEOUT_MS = 15000
+const TIMEOUT_MS = 10000
 const TIMEOUT_MESSAGE = '서버에 연결하지 못했어요. 네트워크(와이파이/데이터)를 확인해 주세요.'
 
 export async function pushState(code: string, state: AppState, updatedAtMs: number): Promise<void> {
   if (!isFirebaseConfigured) throw new Error('Firebase가 아직 설정되지 않았어요')
   const { db, firestore } = await loadFirestore()
   await withTimeout(
-    firestore.setDoc(firestore.doc(db, 'plannerSync', code), {
-      state,
-      updatedAtMs,
-      updatedAt: firestore.serverTimestamp(),
-    }),
+    firestore.setDoc(firestore.doc(db, 'plannerSync', code), { state, updatedAtMs }),
     TIMEOUT_MS,
     TIMEOUT_MESSAGE,
   )
@@ -81,32 +80,4 @@ export async function fetchState(code: string): Promise<SyncDoc | null> {
   )
   if (!snap.exists()) return null
   return snap.data() as SyncDoc
-}
-
-// onSnapshot 구독은 비동기로 시작되므로, 즉시 쓸 수 있는 "구독 취소" 함수를 반환한다.
-export function subscribeState(
-  code: string,
-  onChange: (data: SyncDoc) => void,
-  onError: (err: Error) => void,
-): () => void {
-  let unsub: (() => void) | null = null
-  let cancelled = false
-
-  loadFirestore()
-    .then(({ db, firestore }) => {
-      if (cancelled) return
-      unsub = firestore.onSnapshot(
-        firestore.doc(db, 'plannerSync', code),
-        (snap: import('firebase/firestore').DocumentSnapshot) => {
-          if (snap.exists()) onChange(snap.data() as SyncDoc)
-        },
-        (err: Error) => onError(err),
-      )
-    })
-    .catch((err) => onError(err as Error))
-
-  return () => {
-    cancelled = true
-    unsub?.()
-  }
 }
