@@ -1,6 +1,6 @@
-// 포켓몬 테니스 게임에서 쓰이는 공용 타입 정의
+// 몬스터 테니스 게임에서 쓰이는 공용 타입 정의
 
-export type PokemonId = 'greninja' | 'rillaboom' | 'delphox'
+export type MonsterId = 'abysnaga' | 'drumjaw' | 'ignisphere'
 
 export type SkillElement = 'water' | 'clone' | 'fighting' | 'grass' | 'fire' | 'psychic'
 
@@ -39,7 +39,7 @@ export interface SkillDef {
 }
 
 export interface CharacterDef {
-  id: PokemonId
+  id: MonsterId
   name: string
   typeLabel: string
   color: string
@@ -57,7 +57,6 @@ export type GameStateName =
   | 'select'
   | 'howto'
   | 'shop'
-  | 'serve'
   | 'playing'
   | 'pointResult'
   | 'matchResult'

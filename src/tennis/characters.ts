@@ -1,23 +1,23 @@
-import type { CharacterDef, PokemonId, SkillDef } from './types.ts'
+import type { CharacterDef, MonsterId, SkillDef } from './types.ts'
 
-// 개굴닌자 - 물 타입 + 분신술(닌자) 컨셉
-const greninja: CharacterDef = {
-  id: 'greninja',
-  name: '개굴닌자',
-  typeLabel: '물 / 어둠',
-  color: '#2f6fb0',
-  megaColor: '#7fd6ff',
-  accentColor: '#e23b3b',
+// 아비스나가 - 심해에서 올라온 그림자 뱀 괴수 (물/그림자 타입)
+const abysnaga: CharacterDef = {
+  id: 'abysnaga',
+  name: '아비스나가',
+  typeLabel: '물 / 그림자',
+  color: '#16233f',
+  megaColor: '#5be6ff',
+  accentColor: '#37e6e0',
   baseHp: 90,
-  baseSpeed: 235,
-  radius: 22,
-  description: '재빠른 몸놀림의 물의 닌자. 스피드가 빠르고 견제기가 강하다.',
+  baseSpeed: 4.6,
+  radius: 0.58,
+  description: '심해에서 기어 올라온 그림자 뱀 괴수. 날렵하게 미끄러지듯 움직이며 환영으로 상대를 현혹한다.',
   skills: [
     {
-      id: 'water-shuriken',
-      name: '물수리검',
+      id: 'tidal-fang',
+      name: '해일 수리검',
       element: 'water',
-      description: '물로 만든 수리검을 빠르게 날려 상대를 맞춘다.',
+      description: '소용돌이치는 물의 칼날을 빠르게 날려 상대를 가격한다.',
       baseDamage: 14,
       damagePerLevel: 3,
       baseCooldown: 4.5,
@@ -29,10 +29,10 @@ const greninja: CharacterDef = {
       color: '#4fc3f7',
     },
     {
-      id: 'shadow-clone',
-      name: '분신술',
+      id: 'after-image',
+      name: '잔영분신',
       element: 'clone',
-      description: '분신을 만들어 반격 범위를 넓히고, 명중 시 치명타를 입힌다.',
+      description: '그림자 분신을 만들어 반격 범위를 넓히고, 명중 시 치명타를 입힌다.',
       baseDamage: 20,
       damagePerLevel: 4,
       baseCooldown: 9,
@@ -46,24 +46,24 @@ const greninja: CharacterDef = {
   ],
 }
 
-// 브리가론 - 격투/풀 타입(드럼 기반 파워) 컨셉
-const rillaboom: CharacterDef = {
-  id: 'rillaboom',
-  name: '브리가론',
+// 드럼조우 - 가슴의 북을 두드려 힘을 폭발시키는 거구의 야수 (풀/격투 타입)
+const drumjaw: CharacterDef = {
+  id: 'drumjaw',
+  name: '드럼조우',
   typeLabel: '풀 / 격투',
-  color: '#4a7a2c',
-  megaColor: '#8fe34f',
-  accentColor: '#c88a3a',
+  color: '#4b3b25',
+  megaColor: '#b6ff5a',
+  accentColor: '#8a5a2b',
   baseHp: 115,
-  baseSpeed: 195,
-  radius: 25,
-  description: '북을 두드려 강력한 힘을 내는 파워 타입. 체력이 높고 한 방이 강하다.',
+  baseSpeed: 3.6,
+  radius: 0.75,
+  description: '가슴의 북을 두드려 힘을 폭발시키는 거구의 야수. 체력이 높고 한 방이 강하다.',
   skills: [
     {
       id: 'drum-smash',
       name: '드럼 스매시',
       element: 'fighting',
-      description: '북을 두드려 만든 충격파로 강하게 후려친다. 데미지가 매우 높다.',
+      description: '가슴 북을 두드려 만든 충격파로 강하게 후려친다. 데미지가 매우 높다.',
       baseDamage: 22,
       damagePerLevel: 4.5,
       baseCooldown: 6,
@@ -75,10 +75,10 @@ const rillaboom: CharacterDef = {
       color: '#e08a2b',
     },
     {
-      id: 'grass-vine',
-      name: '그래스 바인',
+      id: 'thorn-vine',
+      name: '가시덩굴',
       element: 'grass',
-      description: '덩굴로 감싼 공을 날려 명중 시 상대를 휘감아 이동속도를 늦춘다.',
+      description: '가시 돋친 덩굴로 감싼 공을 날려 명중 시 상대를 휘감아 이동속도를 늦춘다.',
       baseDamage: 12,
       damagePerLevel: 2.5,
       baseCooldown: 5,
@@ -93,24 +93,24 @@ const rillaboom: CharacterDef = {
   ],
 }
 
-// 마폭시 - 불/에스퍼 타입 컨셉
-const delphox: CharacterDef = {
-  id: 'delphox',
-  name: '마폭시',
+// 이그니스피어 - 불꽃과 정신력을 다루는 부유 정령 괴수 (불꽃/에스퍼 타입)
+const ignisphere: CharacterDef = {
+  id: 'ignisphere',
+  name: '이그니스피어',
   typeLabel: '불꽃 / 에스퍼',
-  color: '#c25a2c',
+  color: '#2a1240',
   megaColor: '#ffb15e',
-  accentColor: '#8452c9',
+  accentColor: '#ff6a2b',
   baseHp: 95,
-  baseSpeed: 215,
-  radius: 23,
-  description: '불꽃과 초능력을 함께 다루는 마법사 타입. 상태 이상으로 상대를 흔든다.',
+  baseSpeed: 4.2,
+  radius: 0.62,
+  description: '몸이 없이 불꽃과 정신력만으로 떠다니는 정령 괴수. 상태 이상으로 상대를 흔든다.',
   skills: [
     {
-      id: 'mystical-fire',
-      name: '매지컬파이어',
+      id: 'soul-flame',
+      name: '혼백화염',
       element: 'fire',
-      description: '신비한 불꽃을 날려 맞으면 화상을 입혀 지속 피해를 준다.',
+      description: '혼을 태우는 신비한 불꽃을 날려 맞으면 화상을 입혀 지속 피해를 준다.',
       baseDamage: 13,
       damagePerLevel: 2.8,
       baseCooldown: 4.5,
@@ -123,10 +123,10 @@ const delphox: CharacterDef = {
       status: { kind: 'burn', duration: 3, tickDamage: 3, tickInterval: 0.6 },
     },
     {
-      id: 'psychic-curve',
-      name: '사이코키네시스',
+      id: 'mind-wave',
+      name: '염동파동',
       element: 'psychic',
-      description: '공을 초능력으로 띄워 궤도를 흔들어 보내며, 맞으면 조작이 잠시 뒤엉킨다.',
+      description: '염동력으로 공의 궤도를 뒤흔들어 보내며, 맞으면 조작이 잠시 뒤엉킨다.',
       baseDamage: 16,
       damagePerLevel: 3.2,
       baseCooldown: 7,
@@ -141,15 +141,15 @@ const delphox: CharacterDef = {
   ],
 }
 
-export const CHARACTERS: Record<PokemonId, CharacterDef> = {
-  greninja,
-  rillaboom,
-  delphox,
+export const CHARACTERS: Record<MonsterId, CharacterDef> = {
+  abysnaga,
+  drumjaw,
+  ignisphere,
 }
 
-export const CHARACTER_LIST: CharacterDef[] = [greninja, rillaboom, delphox]
+export const CHARACTER_LIST: CharacterDef[] = [abysnaga, drumjaw, ignisphere]
 
-export function getCharacter(id: PokemonId): CharacterDef {
+export function getCharacter(id: MonsterId): CharacterDef {
   return CHARACTERS[id]
 }
 

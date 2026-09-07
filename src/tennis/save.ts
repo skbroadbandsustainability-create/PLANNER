@@ -1,7 +1,7 @@
 import { CHARACTER_LIST } from './characters.ts'
-import type { PokemonId } from './types.ts'
+import type { MonsterId } from './types.ts'
 
-const STORAGE_KEY = 'pkmn-tennis-save-v1'
+const STORAGE_KEY = 'monster-tennis-save-v1'
 
 export interface CharacterProgress {
   level: number
@@ -10,7 +10,7 @@ export interface CharacterProgress {
 
 export interface SaveData {
   money: number
-  characters: Record<PokemonId, CharacterProgress>
+  characters: Record<MonsterId, CharacterProgress>
 }
 
 function freshCharacterProgress(): CharacterProgress {
@@ -18,7 +18,7 @@ function freshCharacterProgress(): CharacterProgress {
 }
 
 function freshSave(): SaveData {
-  const characters = {} as Record<PokemonId, CharacterProgress>
+  const characters = {} as Record<MonsterId, CharacterProgress>
   for (const c of CHARACTER_LIST) {
     const skillLevels: Record<string, number> = {}
     // 각 캐릭터의 첫 번째 스킬은 기본적으로 1레벨로 시작한다.
@@ -67,12 +67,12 @@ export function addMoney(amount: number): void {
   persistSave()
 }
 
-export function getSkillLevel(charId: PokemonId, skillId: string): number {
+export function getSkillLevel(charId: MonsterId, skillId: string): number {
   const save = loadSave()
   return save.characters[charId]?.skillLevels[skillId] ?? 0
 }
 
-export function getCharacterLevel(charId: PokemonId): number {
+export function getCharacterLevel(charId: MonsterId): number {
   const save = loadSave()
   return save.characters[charId]?.level ?? 1
 }
@@ -87,7 +87,7 @@ export function characterLevelUpCost(currentLevel: number): number {
 }
 
 export function trySkillUpgrade(
-  charId: PokemonId,
+  charId: MonsterId,
   skillId: string,
   baseCost: number,
   growth: number,
@@ -107,7 +107,7 @@ export function trySkillUpgrade(
 
 const MAX_CHARACTER_LEVEL = 10
 
-export function tryCharacterLevelUp(charId: PokemonId): boolean {
+export function tryCharacterLevelUp(charId: MonsterId): boolean {
   const save = loadSave()
   const progress = save.characters[charId]
   if (progress.level >= MAX_CHARACTER_LEVEL) return false

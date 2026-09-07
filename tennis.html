@@ -7,13 +7,13 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#1c1f3a" />
+    <meta name="theme-color" content="#0c1226" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta
       name="description"
-      content="포켓몬들이 각자의 기술로 맞서는 2D 테니스 게임. 스킬과 메가진화로 승부를 겨뤄보세요!"
+      content="개성 넘치는 원소 몬스터들이 맞붙는 3D 테니스 게임. 스킬과 메가진화로 승부를 겨뤄보세요!"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,41 +21,136 @@
       href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap"
       rel="stylesheet"
     />
-    <title>포켓몬 테니스</title>
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        background: #10112a;
-        overflow: hidden;
-        font-family: 'Gowun Dodum', sans-serif;
-      }
-      #stage {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      #game-canvas {
-        display: block;
-        touch-action: none;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-        cursor: pointer;
-      }
-    </style>
+    <title>몬스터 테니스 챔피언십</title>
+    <link rel="stylesheet" href="/src/tennis/style.css" />
   </head>
   <body>
-    <div id="stage">
-      <canvas id="game-canvas"></canvas>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="overlay">
+      <!-- 메뉴 -->
+      <section id="screen-menu" class="screen" hidden>
+        <h1>몬스터 테니스 챔피언십</h1>
+        <p class="tagline">원소의 힘을 가진 몬스터들이 라켓을 들었다!</p>
+        <p class="money-line">💰 보유 금액: <span id="menu-money">0</span></p>
+        <div class="menu-buttons">
+          <button class="btn btn-lg" data-action="start-select">게임 시작</button>
+          <button class="btn btn-lg" data-action="open-shop">상점 / 스킬트리</button>
+          <button class="btn btn-lg" data-action="open-howto">조작법</button>
+        </div>
+        <p class="hint">이동: 방향키/WASD · 스매시: Space · 스킬: J / K · 메가진화: L</p>
+      </section>
+
+      <!-- 조작법 -->
+      <section id="screen-howto" class="screen" hidden>
+        <button class="btn btn-back" data-action="back-to-menu">뒤로</button>
+        <div class="panel howto-panel">
+          <h2>조작법 &amp; 규칙</h2>
+          <ul class="howto-list">
+            <li><b>방향키 / WASD</b> — 캐릭터 이동 (자기 진영 안에서만 이동)</li>
+            <li><b>Space</b> — 기본 스매시로 공 받아치기</li>
+            <li><b>J</b> — 스킬 1 사용 (공이 사거리 안에 있을 때)</li>
+            <li><b>K</b> — 스킬 2 사용 (공이 사거리 안에 있을 때)</li>
+            <li><b>L</b> — 메가진화 게이지가 가득 찼을 때 메가진화</li>
+            <li><b>ESC</b> — 일시정지</li>
+            <li>공을 받아치면 메가진화 게이지가 조금씩 채워져요.</li>
+            <li>스킬로 때린 공을 상대가 받아치지 못하면 체력이 줄어요.</li>
+            <li>체력이 0이 되면 5초간 기절해서 그 사이 점수를 벌 수 있어요.</li>
+            <li>코트 옆의 투명한 벽에 공이 맞으면 다시 튕겨 돌아와요.</li>
+            <li>먼저 4점을 내면 승리! 이기면 돈을 더 많이 받아요.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 몬스터 선택 -->
+      <section id="screen-select" class="screen" hidden>
+        <button class="btn btn-back" data-action="back-to-menu">뒤로</button>
+        <h2>몬스터를 선택하세요</h2>
+        <div id="select-cards" class="cards"></div>
+        <button class="btn btn-lg btn-accent" data-action="confirm-start">경기 시작!</button>
+      </section>
+
+      <!-- 상점 -->
+      <section id="screen-shop" class="screen" hidden>
+        <button class="btn btn-back" data-action="back-to-menu">뒤로</button>
+        <h2>상점 · 스킬트리</h2>
+        <p class="money-line">💰 <span id="shop-money">0</span></p>
+        <div id="shop-tabs" class="tabs"></div>
+        <div class="shop-layout">
+          <div class="shop-preview-hint">3D 프리뷰</div>
+          <div id="shop-detail" class="panel shop-panel"></div>
+        </div>
+      </section>
+
+      <!-- 경기 HUD -->
+      <div id="hud" hidden>
+        <div class="side-panel left">
+          <div class="panel-name" id="panel-player-name"></div>
+          <div class="bar hp-bar"><div class="bar-fill" id="panel-player-hp-fill"></div></div>
+          <div class="bar-label" id="panel-player-hp-text"></div>
+          <div class="bar mega-bar"><div class="bar-fill" id="panel-player-mega-fill"></div></div>
+          <div class="stun-label" id="panel-player-stun" hidden></div>
+        </div>
+        <div class="side-panel right">
+          <div class="panel-name" id="panel-ai-name"></div>
+          <div class="bar hp-bar"><div class="bar-fill" id="panel-ai-hp-fill"></div></div>
+          <div class="bar-label" id="panel-ai-hp-text"></div>
+          <div class="bar mega-bar"><div class="bar-fill" id="panel-ai-mega-fill"></div></div>
+          <div class="stun-label" id="panel-ai-stun" hidden></div>
+        </div>
+        <div class="score-board">
+          <div id="score-text">0 : 0</div>
+          <div class="score-sub">4점 선취 승리</div>
+        </div>
+        <button class="pause-btn" data-action="pause-game" aria-label="일시정지">⏸</button>
+        <div id="point-banner" class="point-banner" hidden></div>
+        <div class="skill-bar">
+          <div class="skill-btn" id="btn-skill1">
+            <div class="skill-cd"><div class="skill-cd-fill" id="skill1-cd-fill"></div></div>
+            <span class="skill-key">J</span>
+            <span class="skill-name" id="skill1-name"></span>
+            <span class="skill-level" id="skill1-level"></span>
+          </div>
+          <div class="skill-btn" id="btn-skill2">
+            <div class="skill-cd"><div class="skill-cd-fill" id="skill2-cd-fill"></div></div>
+            <span class="skill-key">K</span>
+            <span class="skill-name" id="skill2-name"></span>
+            <span class="skill-level" id="skill2-level"></span>
+          </div>
+          <div class="skill-btn mega-btn" id="btn-mega">
+            <div class="skill-cd"><div class="skill-cd-fill" id="mega-cd-fill"></div></div>
+            <span class="skill-key">L</span>
+            <span class="skill-name" id="mega-name"></span>
+            <span class="skill-level" id="mega-level"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 일시정지 -->
+      <section id="screen-paused" class="screen overlay-modal" hidden>
+        <div class="modal">
+          <h2>일시정지</h2>
+          <button class="btn btn-lg btn-accent" data-action="resume">계속하기</button>
+          <button class="btn btn-lg" data-action="forfeit">경기 포기</button>
+        </div>
+      </section>
+
+      <!-- 경기 결과 -->
+      <section id="screen-matchResult" class="screen overlay-modal" hidden>
+        <div class="modal">
+          <h2 id="result-title">승리!</h2>
+          <p id="result-score"></p>
+          <p id="result-money" class="result-money"></p>
+          <div class="result-buttons">
+            <button class="btn" data-action="rematch">다시하기</button>
+            <button class="btn" data-action="to-shop">상점 가기</button>
+            <button class="btn" data-action="to-menu">메인 메뉴</button>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.128.0/three.min.js"></script>
     <script type="module" src="/src/tennis/main.ts"></script>
   </body>
 </html>

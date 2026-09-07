@@ -1,0 +1,638 @@
+:root {
+  --bg: #0c1226;
+  --panel: rgba(15, 18, 38, 0.82);
+  --panel-strong: rgba(12, 15, 32, 0.94);
+  --border: rgba(255, 255, 255, 0.16);
+  --gold: #ffcf5c;
+  --text: #f4f6ff;
+  --text-dim: rgba(244, 246, 255, 0.72);
+  --danger: #ff5f5f;
+  --ok: #5ce17a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  font-family: 'Gowun Dodum', sans-serif;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#game-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 30%, rgba(8, 10, 22, 0.35), rgba(6, 8, 18, 0.72) 68%);
+}
+
+h1,
+h2,
+h3,
+h4,
+.btn,
+.skill-key,
+.skill-name,
+#score-text,
+.panel-name,
+#result-title {
+  font-family: 'Jua', sans-serif;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 5vw, 2.7rem);
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.6);
+  text-wrap: balance;
+  margin: 0;
+}
+
+h2 {
+  font-size: clamp(1.35rem, 3.6vw, 1.8rem);
+  margin: 0;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.money-line {
+  margin: 0;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: rgba(244, 246, 255, 0.55);
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.6rem;
+  width: min(320px, 80vw);
+}
+
+.btn {
+  appearance: none;
+  border: 1.5px solid var(--border);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 0.85rem 1.4rem;
+  font-size: 1.02rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, color 0.15s ease;
+}
+
+.btn:hover {
+  background: var(--gold);
+  color: #241a04;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+}
+
+.btn-lg {
+  padding: 1rem 1.6rem;
+  font-size: 1.1rem;
+}
+
+.btn-accent {
+  background: var(--gold);
+  color: #241a04;
+  border-color: var(--gold);
+}
+
+.btn-back {
+  position: absolute;
+  top: 1.1rem;
+  left: 1.1rem;
+  z-index: 3;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.4rem;
+  backdrop-filter: blur(6px);
+}
+
+.howto-panel {
+  max-width: 560px;
+  text-align: left;
+}
+
+.howto-list {
+  margin: 0.9rem 0 0;
+  padding-left: 1.2rem;
+  line-height: 1.9;
+  color: var(--text-dim);
+}
+
+.howto-list b {
+  color: var(--gold);
+}
+
+/* ---------- 몬스터 선택 ---------- */
+
+.cards {
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 980px;
+}
+
+.char-card {
+  width: 250px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 1.1rem 1rem 1.3rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  backdrop-filter: blur(6px);
+}
+
+.char-card:hover {
+  transform: translateY(-3px);
+}
+
+.char-card.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 24px rgba(255, 207, 92, 0.25);
+}
+
+.char-badge {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  margin: 0 auto 0.6rem;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.char-card h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1.15rem;
+}
+
+.type-label {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin: 0 0 0.3rem;
+}
+
+.char-level {
+  color: var(--gold);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.skill-list {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  font-size: 0.78rem;
+  text-align: left;
+  color: var(--text-dim);
+}
+
+.skill-list li {
+  padding: 0.15rem 0;
+}
+
+.skill-list li.locked {
+  opacity: 0.55;
+}
+
+.char-desc {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+  min-height: 3.4em;
+  margin: 0 0 0.7rem;
+}
+
+.pick-btn {
+  width: 100%;
+  border: 1.5px solid var(--accent, var(--gold));
+  background: transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.55rem;
+  font-family: 'Jua', sans-serif;
+  cursor: pointer;
+}
+
+.char-card.selected .pick-btn {
+  background: var(--gold);
+  color: #241a04;
+}
+
+/* ---------- 상점 ---------- */
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  border: 1.5px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.55rem 1.1rem;
+  font-family: 'Jua', sans-serif;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: var(--gold);
+  color: #241a04;
+  border-color: var(--gold);
+}
+
+.shop-layout {
+  display: flex;
+  width: min(980px, 92vw);
+  height: min(58vh, 460px);
+  gap: 0;
+}
+
+.shop-preview-hint {
+  flex: 1;
+  display: none;
+}
+
+.shop-panel {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.shop-header h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.3rem;
+}
+
+.shop-header p {
+  margin: 0 0 0.8rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.shop-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 0.9rem;
+}
+
+.shop-skill {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+}
+
+.shop-skill-info {
+  flex: 1;
+}
+
+.shop-skill-info h4 {
+  margin: 0 0 0.25rem;
+  color: var(--skill-color, var(--gold));
+  font-size: 1rem;
+}
+
+.shop-skill-info .lv {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-family: 'Gowun Dodum', sans-serif;
+}
+
+.shop-skill-info p {
+  margin: 0.15rem 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.stat-line {
+  color: var(--text) !important;
+  opacity: 0.75;
+}
+
+.buy-btn {
+  flex-shrink: 0;
+  border: 1.5px solid var(--gold);
+  background: rgba(255, 207, 92, 0.12);
+  color: var(--gold);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  font-family: 'Jua', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.buy-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.buy-btn.levelup {
+  background: rgba(92, 225, 122, 0.14);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+/* ---------- 경기 HUD ---------- */
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#hud .pause-btn {
+  pointer-events: auto;
+}
+
+.side-panel {
+  position: absolute;
+  top: 1rem;
+  width: min(280px, 40vw);
+  background: rgba(8, 10, 22, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.7rem 0.9rem;
+}
+
+.side-panel.left {
+  left: 1rem;
+}
+
+.side-panel.right {
+  right: 1rem;
+  text-align: right;
+}
+
+.panel-name {
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.bar {
+  height: 12px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  overflow: hidden;
+  margin-bottom: 0.3rem;
+}
+
+.mega-bar {
+  height: 7px;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--ok);
+  transition: width 0.12s linear;
+}
+
+.hp-bar .bar-fill.low {
+  background: var(--danger);
+}
+
+.mega-bar .bar-fill {
+  background: #7fd6ff;
+}
+
+.bar-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.stun-label {
+  margin-top: 0.3rem;
+  font-family: 'Jua', sans-serif;
+  color: var(--gold);
+  font-size: 0.8rem;
+}
+
+.score-board {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+#score-text {
+  font-size: 1.7rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.score-sub {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.pause-btn {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translate(calc(-50% + 160px), 0);
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(8, 10, 22, 0.6);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.point-banner {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Jua', sans-serif;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.7);
+}
+
+.skill-bar {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1.1rem;
+  pointer-events: none;
+}
+
+.skill-btn {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(8, 10, 22, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.skill-btn.locked {
+  opacity: 0.45;
+}
+
+.skill-btn.ready {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(255, 207, 92, 0.4);
+}
+
+.skill-cd {
+  position: absolute;
+  inset: 0;
+}
+
+.skill-cd-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  background: rgba(0, 0, 0, 0.6);
+  transition: height 0.1s linear;
+}
+
+.skill-key {
+  position: relative;
+  font-size: 0.95rem;
+  z-index: 1;
+}
+
+.skill-name {
+  position: relative;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  z-index: 1;
+  text-align: center;
+  padding: 0 0.2rem;
+}
+
+.skill-level {
+  position: relative;
+  font-size: 0.55rem;
+  color: var(--gold);
+  z-index: 1;
+}
+
+/* ---------- 모달(일시정지/결과) ---------- */
+
+.overlay-modal {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2rem 2.2rem;
+  min-width: min(340px, 84vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+#result-title {
+  font-size: 2rem;
+  color: var(--danger);
+}
+
+#result-title.won {
+  color: var(--gold);
+}
+
+.result-money {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.result-buttons {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .side-panel {
+    width: 42vw;
+    padding: 0.5rem 0.6rem;
+  }
+  .skill-btn {
+    width: 52px;
+    height: 52px;
+  }
+  .skill-bar {
+    gap: 0.7rem;
+  }
+}

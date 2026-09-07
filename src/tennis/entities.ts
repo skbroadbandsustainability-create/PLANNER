@@ -1,13 +1,14 @@
 import type { CharacterDef, StatusEffect, StatusEffectKind } from './types.ts'
 import {
-  AI_MAX_Y,
-  AI_MIN_Y,
+  AI_MAX_Z,
+  AI_MIN_Z,
+  BALL_PEAK_HEIGHT,
+  BALL_RADIUS,
   CHAR_MAX_X,
   CHAR_MIN_X,
-  PLAYER_MAX_Y,
-  PLAYER_MIN_Y,
-  WALL_LEFT,
-  WALL_RIGHT,
+  PLAYER_MAX_Z,
+  PLAYER_MIN_Z,
+  WALL_X,
 } from './constants.ts'
 
 export type Side = 'player' | 'ai'
@@ -16,7 +17,7 @@ export class Character {
   def: CharacterDef
   side: Side
   x: number
-  y: number
+  z: number
   facing: -1 | 1
   maxHp: number
   hp: number
@@ -35,14 +36,15 @@ export class Character {
     def: CharacterDef,
     side: Side,
     x: number,
-    y: number,
+    z: number,
     level: number,
     skillLevels: Record<string, number>,
   ) {
     this.def = def
     this.side = side
     this.x = x
-    this.y = y
+    this.z = z
+    // player는 네트를 향해(-z) 바라보고, ai는 반대(+z)를 바라본다
     this.facing = side === 'player' ? -1 : 1
     this.level = level
     this.skillLevels = skillLevels
@@ -54,7 +56,7 @@ export class Character {
   }
 
   get baseSpeed(): number {
-    return this.def.baseSpeed + (this.level - 1) * 4
+    return this.def.baseSpeed + (this.level - 1) * 0.06
   }
 
   get isRooted(): boolean {
@@ -102,12 +104,12 @@ export class Character {
     return this.stunTimer > 0
   }
 
-  moveBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
+  moveBounds(): { minX: number; maxX: number; minZ: number; maxZ: number } {
     return {
       minX: CHAR_MIN_X,
       maxX: CHAR_MAX_X,
-      minY: this.side === 'player' ? PLAYER_MIN_Y : AI_MIN_Y,
-      maxY: this.side === 'player' ? PLAYER_MAX_Y : AI_MAX_Y,
+      minZ: this.side === 'player' ? PLAYER_MIN_Z : AI_MIN_Z,
+      maxZ: this.side === 'player' ? PLAYER_MAX_Z : AI_MAX_Z,
     }
   }
 
@@ -137,12 +139,6 @@ export class Character {
     this.statusEffects = this.statusEffects.filter((e) => e.timeLeft > 0)
   }
 
-  resetForRound(): void {
-    this.hp = this.maxHp
-    this.stunTimer = 0
-    this.clearStatusEffects()
-  }
-
   resetForMatch(): void {
     this.hp = this.maxHp
     this.stunTimer = 0
@@ -155,31 +151,35 @@ export class Character {
 
 export class Ball {
   x: number
-  y: number
+  z: number
   vx = 0
-  vy = 0
-  radius = 9
+  vz = 0
+  radius = BALL_RADIUS
   lastHitBy: Side | null = null
   isSkillShot = false
   skillElement: string | null = null
   skillColor = '#ffffff'
   skillDamage = 0
   pendingStatus: StatusEffect | null = null
-  trail: { x: number; y: number }[] = []
+  trail: { x: number; z: number; y: number }[] = []
   flightTime = 0
+  /** 이 타구가 목표 지점까지 도달하는 데 걸릴 것으로 예상되는 시간(초). 포물선 아치 계산용. */
+  flightDuration = 1
   inPlay = false
 
-  constructor(x: number, y: number) {
+  constructor(x: number, z: number) {
     this.x = x
-    this.y = y
+    this.z = z
   }
 
-  launch(vx: number, vy: number, hitBy: Side | null): void {
+  launch(vx: number, vz: number, hitBy: Side | null, flightDuration: number): void {
     this.vx = vx
-    this.vy = vy
+    this.vz = vz
     this.lastHitBy = hitBy
     this.flightTime = 0
+    this.flightDuration = Math.max(0.2, flightDuration)
     this.inPlay = true
+    this.trail = []
   }
 
   clearSkill(): void {
@@ -192,24 +192,27 @@ export class Ball {
   update(dt: number): void {
     if (!this.inPlay) return
     this.flightTime += dt
-    this.trail.push({ x: this.x, y: this.y })
-    if (this.trail.length > 10) this.trail.shift()
+    this.trail.push({ x: this.x, z: this.z, y: this.height })
+    if (this.trail.length > 12) this.trail.shift()
 
     this.x += this.vx * dt
-    this.y += this.vy * dt
+    this.z += this.vz * dt
 
-    if (this.x - this.radius < WALL_LEFT) {
-      this.x = WALL_LEFT + this.radius
+    if (this.x - this.radius < -WALL_X) {
+      this.x = -WALL_X + this.radius
       this.vx = Math.abs(this.vx)
-    } else if (this.x + this.radius > WALL_RIGHT) {
-      this.x = WALL_RIGHT - this.radius
+    } else if (this.x + this.radius > WALL_X) {
+      this.x = WALL_X - this.radius
       this.vx = -Math.abs(this.vx)
     }
   }
 
-  /** 시각적 궤적 아치 높이(0~1) - 서브/랠리 중간에 살짝 떠 보이도록 */
-  get arcScale(): number {
-    const t = Math.min(1, this.flightTime / 0.9)
-    return 1 + Math.sin(t * Math.PI) * 0.5
+  /** 포물선 아치의 현재 높이(월드 단위). 실제 중력 낙하 공식을 이용해 자연스러운 궤적을 만든다. */
+  get height(): number {
+    const t = this.flightTime
+    const T = this.flightDuration
+    if (t >= T) return 0
+    const u = t / T
+    return 4 * BALL_PEAK_HEIGHT * u * (1 - u)
   }
 }
