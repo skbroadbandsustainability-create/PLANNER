@@ -69,11 +69,18 @@ function reducer(state: AppState, action: Action): AppState {
     case 'TOGGLE_TASK': {
       const target = state.tasks.find((t) => t.id === action.id)
       if (!target) return state
-      const tasks = state.tasks.map((t) =>
-        t.id === action.id
-          ? { ...t, done: !t.done, doneAt: !t.done ? new Date().toISOString() : undefined }
-          : t,
-      )
+      // 체크 해제할 때 doneAt에 undefined를 넣으면(값 자체는 지워지지만 필드는
+      // 남아있는 상태) 클라우드에 저장할 때 오류가 나서 저장이 조용히
+      // 실패한다(Firestore는 undefined 값을 가진 필드를 허용하지 않음).
+      // 그래서 그냥 값을 비우는 대신 필드 자체를 아예 없애버린다.
+      const tasks = state.tasks.map((t) => {
+        if (t.id !== action.id) return t
+        if (t.done) {
+          const { doneAt: _doneAt, ...rest } = t
+          return { ...rest, done: false }
+        }
+        return { ...t, done: true, doneAt: new Date().toISOString() }
+      })
 
       // 이 날짜의 과제가 전부 끝났는지 다시 계산해서, 도장/별을 자동으로 주거나 취소한다.
       // (실수로 체크했다가 취소하면 도장과 별도 함께 취소돼야 하므로)
