@@ -135,6 +135,12 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   // 보낸 게 나중에 도착해서 최신 내용을 덮어써버릴 수 있어, 반드시 이전 저장이
   // 끝난 뒤에 다음 저장을 보내도록 체인으로 묶는다.
   const pushChainRef = useRef<Promise<void>>(Promise.resolve())
+  // 새로고침 직후 맨 처음 렌더링은 "이 기기에 저장돼 있던(어쩌면 오래된) 내용"일
+  // 뿐, 사용자가 방금 한 행동이 아니다. 이걸 최신 시각을 달아 그대로 서버에
+  // 밀어넣으면, 아직 서버에서 최신 내용을 받아오기도 전에 이 기기의 오래된
+  // 내용이 "방금 한 일"인 것처럼 덮어써버릴 수 있어, 맨 처음 한 번은 절대
+  // 밀어넣지 않는다 (서버의 최신 내용을 받아온 뒤부터만 진짜 로컬 변경으로 간주).
+  const isFirstRenderRef = useRef(true)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -142,6 +148,10 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
 
   // 로컬에서 상태가 바뀔 때마다(할 일 체크, 계획 추가 등) 연동 중이면 클라우드에도 반영
   useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      return
+    }
     if (lastImportedStateRef.current === state) {
       lastImportedStateRef.current = null
       return
