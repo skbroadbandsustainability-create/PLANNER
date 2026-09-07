@@ -6,6 +6,11 @@ import { isFirebaseConfigured } from '../firebaseConfig'
 import { fetchState, generateSyncCode, pushState } from '../sync'
 
 const SYNC_CODE_KEY = 'kids-planner-sync-code'
+// 이 기기가 마지막으로 서버와 맞춰봤던(직접 저장했거나 받아온) 시각(ms).
+// 새로고침해도 사라지면 안 되므로 localStorage에 같이 저장해둔다 — 그래야
+// "방금 이 기기에서 한 저장이 새로고침 때문에 서버까지 도착하기 전에
+// 끊겼는지"를 다시 켰을 때도 정확히 판단할 수 있다.
+const SYNC_KNOWN_TS_KEY = 'kids-planner-sync-known-ts'
 export type SyncStatus = 'off' | 'connecting' | 'connected' | 'error'
 
 type Action =
@@ -33,6 +38,23 @@ function loadInitialState(): AppState {
     return { ...DEFAULT_STATE, ...parsed }
   } catch {
     return DEFAULT_STATE
+  }
+}
+
+function loadInitialKnownTs(): number {
+  try {
+    const raw = localStorage.getItem(SYNC_KNOWN_TS_KEY)
+    return raw ? Number(raw) || 0 : 0
+  } catch {
+    return 0
+  }
+}
+
+function persistKnownTs(ts: number) {
+  try {
+    localStorage.setItem(SYNC_KNOWN_TS_KEY, String(ts))
+  } catch {
+    // 저장 실패해도 이번 세션에서는 메모리상 값으로 계속 동작함
   }
 }
 
@@ -126,7 +148,8 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   // 기준으로 판단한다. (기기마다 따로 세는 번호를 쓰면, 로컬 조작을 더 많이 한
   // 기기의 번호가 실제로는 더 오래된 다른 기기의 최신 내용보다 커져버려서
   // 그 기기의 변경을 "오래된 것"으로 착각하고 무시해버리는 문제가 있었다.)
-  const knownUpdatedAtRef = useRef(0)
+  // 새로고침해도 없어지면 안 되므로 localStorage에 저장해둔 값으로 시작한다.
+  const knownUpdatedAtRef = useRef(loadInitialKnownTs())
   // 원격에서 막 받아온 상태를 로컬 reducer에 반영하면 아래 "상태가 바뀔 때마다
   // 저장" 효과도 같이 실행되는데, 그때 방금 받은 걸 다시 그대로 쏘아 보내면 안
   // 되므로 "이 상태 객체는 방금 원격에서 가져온 것"이라는 표시를 남겨둔다.
@@ -140,12 +163,18 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   // 보낸 게 나중에 도착해서 최신 내용을 덮어써버릴 수 있어, 반드시 이전 저장이
   // 끝난 뒤에 다음 저장을 보내도록 체인으로 묶는다.
   const pushChainRef = useRef<Promise<void>>(Promise.resolve())
-  // 새로고침 직후 맨 처음 렌더링은 "이 기기에 저장돼 있던(어쩌면 오래된) 내용"일
-  // 뿐, 사용자가 방금 한 행동이 아니다. 이걸 최신 시각을 달아 그대로 서버에
-  // 밀어넣으면, 아직 서버에서 최신 내용을 받아오기도 전에 이 기기의 오래된
-  // 내용이 "방금 한 일"인 것처럼 덮어써버릴 수 있어, 맨 처음 한 번은 절대
-  // 밀어넣지 않는다 (서버의 최신 내용을 받아온 뒤부터만 진짜 로컬 변경으로 간주).
-  const isFirstRenderRef = useRef(true)
+  // 연결할 때마다 한 번, 서버와 이 기기 중 뭐가 최신인지 먼저 확인(reconcile)을
+  // 끝내기 전까지는 "상태가 바뀔 때마다 저장" 효과가 끼어들면 안 된다. (아직
+  // 서버 쪽 최신 내용을 모르는 채로 지금 화면 내용을 그대로 밀어넣어버릴 수
+  // 있으므로) 확인이 끝난 뒤에만 true가 된다. (ref가 아니라 state인 이유:
+  // 값이 바뀔 때 저장 효과가 다시 한번 실행돼서, 확인하는 동안 있었던
+  // 변경사항도 놓치지 않고 저장하도록 하기 위함)
+  const [syncReady, setSyncReady] = useState(false)
+  // pullOnce/reconcile 같은 비동기 함수 안에서 "지금 이 순간의 최신 state"를
+  // 참조하기 위한 값. (의존성 배열에 state를 넣으면 상태가 바뀔 때마다
+  // 연결이 다시 만들어져야 해서, 대신 항상 최신값을 담아두는 ref를 쓴다)
+  const latestStateRef = useRef(state)
+  latestStateRef.current = state
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -153,25 +182,23 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
 
   // 로컬에서 상태가 바뀔 때마다(할 일 체크, 계획 추가 등) 연동 중이면 클라우드에도 반영
   useEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false
-      return
-    }
+    if (!syncCode) return
+    if (!syncReady) return
     if (lastImportedStateRef.current === state) {
       lastImportedStateRef.current = null
       return
     }
-    if (!syncCode) return
     const code = syncCode
     const snapshot = state
     const ts = Date.now()
     knownUpdatedAtRef.current = ts
+    persistKnownTs(ts)
     pushChainRef.current = pushChainRef.current
       .catch(() => {})
       .then(() => pushState(code, snapshot, ts))
       .catch(() => setSyncError('저장에 실패했어요. 인터넷 연결을 확인해 주세요.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state])
+  }, [state, syncReady])
 
   // 서버에 한 번 물어봐서, 이 기기가 알고 있는 것보다 새 내용이 있으면 받아온다.
   const pullOnce = useCallback(async (code: string) => {
@@ -181,9 +208,37 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       setSyncError(null)
       if (remote && remote.updatedAtMs > knownUpdatedAtRef.current) {
         knownUpdatedAtRef.current = remote.updatedAtMs
+        persistKnownTs(remote.updatedAtMs)
         lastImportedStateRef.current = remote.state
         dispatch({ type: 'IMPORT_STATE', state: remote.state })
       }
+    } catch {
+      setSyncStatus('error')
+      setSyncError('연동 서버에 연결하지 못했어요. 와이파이/데이터 연결을 확인해 주세요.')
+    }
+  }, [])
+
+  // 연결을 새로 맺을 때(앱을 열었을 때 등) 딱 한 번, 서버와 이 기기 중 어느
+  // 쪽이 최신인지 확인한다. 서버가 더 최신이면 받아오고, 반대로 이 기기가 더
+  // 최신인데 서버가 못 따라온 상태라면(예: 저장 도중 새로고침 때문에 방금 한
+  // 저장이 서버까지 도착하지 못하고 끊겼을 경우) 지금 내용을 다시 저장해서
+  // 끊겼던 저장을 이어서 마무리한다.
+  const reconcileOnConnect = useCallback(async (code: string) => {
+    try {
+      const remote = await fetchState(code)
+      if (remote && remote.updatedAtMs > knownUpdatedAtRef.current) {
+        knownUpdatedAtRef.current = remote.updatedAtMs
+        persistKnownTs(remote.updatedAtMs)
+        lastImportedStateRef.current = remote.state
+        dispatch({ type: 'IMPORT_STATE', state: remote.state })
+      } else if (!remote || remote.updatedAtMs < knownUpdatedAtRef.current) {
+        const ts = knownUpdatedAtRef.current || Date.now()
+        knownUpdatedAtRef.current = ts
+        persistKnownTs(ts)
+        await pushState(code, latestStateRef.current, ts)
+      }
+      setSyncStatus('connected')
+      setSyncError(null)
     } catch {
       setSyncStatus('error')
       setSyncError('연동 서버에 연결하지 못했어요. 와이파이/데이터 연결을 확인해 주세요.')
@@ -195,10 +250,13 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       if (pollTimerRef.current !== null) window.clearInterval(pollTimerRef.current)
       setSyncStatus('connecting')
       setSyncError(null)
-      void pullOnce(code)
+      setSyncReady(false)
+      void reconcileOnConnect(code).finally(() => {
+        setSyncReady(true)
+      })
       pollTimerRef.current = window.setInterval(() => void pullOnce(code), SYNC_POLL_MS)
     },
-    [pullOnce],
+    [reconcileOnConnect, pullOnce],
   )
 
   useEffect(() => {
@@ -229,6 +287,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     const code = generateSyncCode()
     const ts = Date.now()
     knownUpdatedAtRef.current = ts
+    persistKnownTs(ts)
     await pushState(code, state, ts)
     localStorage.setItem(SYNC_CODE_KEY, code)
     setSyncCode(code)
@@ -242,6 +301,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       const remote = await fetchState(trimmed)
       if (!remote) return 'not_found' as const
       knownUpdatedAtRef.current = remote.updatedAtMs
+      persistKnownTs(remote.updatedAtMs)
       lastImportedStateRef.current = remote.state
       dispatch({ type: 'IMPORT_STATE', state: remote.state })
       localStorage.setItem(SYNC_CODE_KEY, trimmed)
@@ -255,7 +315,10 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const stopSync = useCallback(() => {
     if (pollTimerRef.current !== null) window.clearInterval(pollTimerRef.current)
     pollTimerRef.current = null
+    setSyncReady(false)
+    knownUpdatedAtRef.current = 0
     localStorage.removeItem(SYNC_CODE_KEY)
+    localStorage.removeItem(SYNC_KNOWN_TS_KEY)
     setSyncCode(null)
     setSyncStatus('off')
     setSyncError(null)
