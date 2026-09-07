@@ -118,10 +118,17 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('off')
   const [syncError, setSyncError] = useState<string | null>(null)
 
-  // 원격(Firestore)에서 방금 받아온 상태를 로컬에 반영할 때, 그걸 다시 원격으로
-  // 되쏘지 않기 위한 표시. rev는 "몇 번째로 저장된 상태인지" 세는 번호.
-  const knownRevRef = useRef(0)
-  const suppressNextPushRef = useRef(false)
+  // "이미 알고 있는 것보다 새 내용인지"를 기기 간에 그대로 비교 가능한 시각(ms)
+  // 기준으로 판단한다. (기기마다 따로 세는 번호를 쓰면, 로컬 조작을 더 많이 한
+  // 기기의 번호가 실제로는 더 오래된 다른 기기의 최신 내용보다 커져버려서
+  // 그 기기의 변경을 "오래된 것"으로 착각하고 무시해버리는 문제가 있었다.)
+  const knownUpdatedAtRef = useRef(0)
+  // 원격에서 막 받아온 상태를 로컬 reducer에 반영하면 아래 "상태가 바뀔 때마다
+  // 저장" 효과도 같이 실행되는데, 그때 방금 받은 걸 다시 그대로 쏘아 보내면 안
+  // 되므로 "이 상태 객체는 방금 원격에서 가져온 것"이라는 표시를 남겨둔다.
+  // (단순 boolean 플래그 대신 상태 객체 자체를 비교하면, 짧은 시간에 원격
+  // 갱신이 연달아 와도 각각 정확히 스스로를 구분해서 건너뛸 수 있다.)
+  const lastImportedStateRef = useRef<AppState | null>(null)
   const unsubscribeRef = useRef<null | (() => void)>(null)
   // 저장 요청을 순서대로 하나씩만 보내기 위한 큐. 짧은 시간에 여러 번 바뀌면
   // (예: 할 일을 연달아 추가) 저장 요청들이 네트워크에서 순서가 뒤바뀌어 먼저
@@ -135,18 +142,18 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
 
   // 로컬에서 상태가 바뀔 때마다(할 일 체크, 계획 추가 등) 연동 중이면 클라우드에도 반영
   useEffect(() => {
-    if (suppressNextPushRef.current) {
-      suppressNextPushRef.current = false
+    if (lastImportedStateRef.current === state) {
+      lastImportedStateRef.current = null
       return
     }
     if (!syncCode) return
     const code = syncCode
     const snapshot = state
-    const nextRev = knownRevRef.current + 1
-    knownRevRef.current = nextRev
+    const ts = Date.now()
+    knownUpdatedAtRef.current = ts
     pushChainRef.current = pushChainRef.current
       .catch(() => {})
-      .then(() => pushState(code, snapshot, nextRev))
+      .then(() => pushState(code, snapshot, ts))
       .catch(() => setSyncError('저장에 실패했어요. 인터넷 연결을 확인해 주세요.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
@@ -168,9 +175,9 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       (data) => {
         clearTimeout(timeoutId)
         setSyncStatus('connected')
-        if (data.rev > knownRevRef.current) {
-          knownRevRef.current = data.rev
-          suppressNextPushRef.current = true
+        if (data.updatedAtMs > knownUpdatedAtRef.current) {
+          knownUpdatedAtRef.current = data.updatedAtMs
+          lastImportedStateRef.current = data.state
           dispatch({ type: 'IMPORT_STATE', state: data.state })
         }
       },
@@ -190,8 +197,9 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
 
   const startSync = useCallback(async () => {
     const code = generateSyncCode()
-    knownRevRef.current = 1
-    await pushState(code, state, 1)
+    const ts = Date.now()
+    knownUpdatedAtRef.current = ts
+    await pushState(code, state, ts)
     localStorage.setItem(SYNC_CODE_KEY, code)
     setSyncCode(code)
     connect(code)
@@ -203,8 +211,8 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
       const trimmed = code.trim().toUpperCase()
       const remote = await fetchState(trimmed)
       if (!remote) return 'not_found' as const
-      knownRevRef.current = remote.rev
-      suppressNextPushRef.current = true
+      knownUpdatedAtRef.current = remote.updatedAtMs
+      lastImportedStateRef.current = remote.state
       dispatch({ type: 'IMPORT_STATE', state: remote.state })
       localStorage.setItem(SYNC_CODE_KEY, trimmed)
       setSyncCode(trimmed)
