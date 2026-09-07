@@ -41,7 +41,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 
 export interface SyncDoc {
   state: AppState
-  rev: number
+  // 기기마다 따로 세는 번호(rev) 대신, 기기 간에 그대로 비교 가능한
+  // 시각(ms)을 기준으로 "어느 쪽이 더 최신인지" 판단한다.
+  updatedAtMs: number
 }
 
 // 헷갈리기 쉬운 0/O, 1/I는 빼고 6자리 코드를 만든다.
@@ -55,13 +57,13 @@ export function generateSyncCode(): string {
 const TIMEOUT_MS = 15000
 const TIMEOUT_MESSAGE = '서버에 연결하지 못했어요. 네트워크(와이파이/데이터)를 확인해 주세요.'
 
-export async function pushState(code: string, state: AppState, rev: number): Promise<void> {
+export async function pushState(code: string, state: AppState, updatedAtMs: number): Promise<void> {
   if (!isFirebaseConfigured) throw new Error('Firebase가 아직 설정되지 않았어요')
   const { db, firestore } = await loadFirestore()
   await withTimeout(
     firestore.setDoc(firestore.doc(db, 'plannerSync', code), {
       state,
-      rev,
+      updatedAtMs,
       updatedAt: firestore.serverTimestamp(),
     }),
     TIMEOUT_MS,
