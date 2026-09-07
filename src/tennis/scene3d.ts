@@ -1,7 +1,7 @@
 // Three.js 기반 3D 렌더링 레이어.
-// three.js는 <script> 태그(CDN)로 로드되어 전역 THREE 객체로 제공된다 (번들에 포함하지 않음).
-declare const THREE: any
-
+// three.js는 npm 의존성으로 번들에 포함된다 (외부 CDN에 의존하지 않음 - 사내망/방화벽
+// 환경에서도 안정적으로 동작하도록).
+import * as THREE from 'three'
 import type { Character, Ball } from './entities.ts'
 import type { CharacterDef, SkillElement } from './types.ts'
 import {
